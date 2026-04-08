@@ -1,0 +1,280 @@
+@import "tailwindcss";
+
+/* ============================================
+   MIND ORGANIZER — Global Styles
+   Design System: Indigo Nebula (from Stitch)
+   ============================================ */
+
+/* ── Design Tokens ── */
+:root {
+  --color-bg:              #0d0d18;
+  --color-surface:         #181826;
+  --color-surface-low:     #12121e;
+  --color-surface-high:    #1e1e2d;
+  --color-surface-highest: #242434;
+  --color-surface-bright:  #2b2a3c;
+  --color-primary:         #9fa7ff;
+  --color-primary-dim:     #8a95ff;
+  --color-secondary:       #be83fa;
+  --color-secondary-dim:   #c084fc;
+  --color-tertiary:        #9492ff;
+  --color-outline:         #757482;
+  --color-outline-variant: #474754;
+  --color-on-surface:      #e9e6f7;
+  --color-on-surface-variant: #aba9b9;
+  --color-error:           #ff6e84;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body:    'Manrope', sans-serif;
+
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-pill: 999px;
+
+  --glass-bg:   rgba(24, 24, 38, 0.55);
+  --glass-blur: blur(18px);
+
+  --shadow-float: 0 20px 40px rgba(0, 0, 0, 0.45);
+  --shadow-glow:  0 0 20px rgba(159, 167, 255, 0.25);
+  --shadow-glow-sm: 0 0 10px rgba(159, 167, 255, 0.18);
+
+  --gradient-primary: linear-gradient(135deg, #9fa7ff 0%, #be83fa 100%);
+  --gradient-primary-soft: linear-gradient(135deg, rgba(159,167,255,0.15) 0%, rgba(190,131,250,0.15) 100%);
+
+  --nav-height: 76px;
+  --header-height: 64px;
+}
+
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent iOS bounce scroll so React Flow can pan freely */
+  overscroll-behavior: none;
+  /* Safe area for notch / home indicator */
+  padding-env: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-outline-variant); border-radius: 4px; }
+
+/* ── React Flow overrides — match Indigo Nebula ── */
+.react-flow__background {
+  background-color: var(--color-bg) !important;
+}
+
+.react-flow__controls {
+  bottom: calc(var(--nav-height) + 16px) !important;
+  right: 16px !important;
+  top: auto !important;
+  left: auto !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-float) !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur) !important;
+  -webkit-backdrop-filter: var(--glass-blur) !important;
+  border: 0.5px solid rgba(159, 167, 255, 0.12) !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-on-surface-variant) !important;
+  fill: var(--color-on-surface-variant) !important;
+  transition: color 0.2s, fill 0.2s !important;
+}
+.react-flow__controls-button:hover {
+  background: rgba(159, 167, 255, 0.08) !important;
+  color: var(--color-primary) !important;
+  fill: var(--color-primary) !important;
+}
+
+.react-flow__edge-path {
+  stroke: rgba(159, 167, 255, 0.45) !important;
+  stroke-width: 1.5px !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--color-primary) !important;
+  stroke-width: 2px !important;
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* ── Custom Node Styles ── */
+.mind-node {
+  background: var(--color-surface-high);
+  border: 3px solid var(--color-secondary);
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 100px;
+  text-align: center;
+  box-shadow: var(--shadow-glow-sm);
+  transition: box-shadow 0.25s ease, transform 0.2s ease;
+  cursor: grab;
+}
+.mind-node:active { cursor: grabbing; }
+.mind-node:hover {
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-1px);
+}
+.mind-node.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(159, 167, 255, 0.3), var(--shadow-glow);
+}
+
+.mind-node-root {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border: 3px solid var(--color-secondary-dim);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.5), var(--shadow-float);
+  padding: 14px 24px;
+  border-radius: 50px;
+}
+.mind-node-root:hover {
+  box-shadow: 0 0 32px rgba(99, 102, 241, 0.65), var(--shadow-float);
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* ── Glassmorphism utility ── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 0.5px solid rgba(159, 167, 255, 0.1);
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(159, 167, 255, 0.25); }
+  50%       { box-shadow: 0 0 24px rgba(159, 167, 255, 0.45); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* ── Toast / Notification ── */
+.toast-container {
+  position: fixed;
+  top: calc(var(--header-height) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  background: var(--color-surface-bright);
+  border: 0.5px solid rgba(159, 167, 255, 0.15);
+  border-radius: var(--radius-pill);
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-on-surface-variant);
+  box-shadow: var(--shadow-float);
+  animation: fadeInUp 0.3s ease forwards;
+  white-space: nowrap;
+}
+.toast.success { color: var(--color-primary); }
+.toast.error   { color: var(--color-error); }
+
+/* ── Input hidden ── */
+input[type="file"] { display: none; }
+
+/* ── Workspace dialog ── */
+.workspace-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.workspace-dialog {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-top: 0.5px solid rgba(159, 167, 255, 0.15);
+  width: 100%;
+  max-width: 600px;
+  padding: 20px 0 calc(var(--nav-height) + 20px);
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes slideUp {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ── Settings ── */
+.settings-page {
+  position: absolute;
+  inset: var(--header-height) 0 var(--nav-height);
+  overflow-y: auto;
+  padding: 24px 16px 40px; /* Added extra bottom padding */
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.settings-card {
+  background: var(--color-surface-high);
+  border-radius: var(--radius-md);
+  border: 0.5px solid rgba(159, 167, 255, 0.08);
+  /* overflow: hidden; removed to prevent clipping */
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+.settings-row:hover { background: rgba(159, 167, 255, 0.05); }
+.settings-row + .settings-row {
+  border-top: 0.5px solid rgba(159, 167, 255, 0.06);
+}
