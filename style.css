@@ -1,0 +1,1431 @@
+/* ==========================================================================
+   Hikari Guide Designer - Premium Neon & Glassmorphism Design System
+   ========================================================================== */
+
+:root {
+    --bg-main: #060913;
+    --bg-card: rgba(13, 20, 38, 0.6);
+    --border-color: rgba(0, 240, 255, 0.15);
+    --border-hover: rgba(0, 240, 255, 0.3);
+    
+    --color-cyan: #00f0ff;
+    --color-magenta: #ff007f;
+    --color-green: #00ff66;
+    --color-amber: #ffb300;
+    --color-blue: #0066ff;
+    
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    
+    --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: 'Share Tech Mono', monospace;
+    
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --shadow-cyan: 0 0 15px rgba(0, 240, 255, 0.4);
+    --shadow-magenta: 0 0 15px rgba(ff, 0, 127, 0.4);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+/* 背景グロー装飾 */
+.bg-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    z-index: -1;
+    opacity: 0.15;
+    pointer-events: none;
+}
+.bg-glow-1 {
+    width: 500px;
+    height: 500px;
+    background: var(--color-cyan);
+    top: -100px;
+    left: -100px;
+}
+.bg-glow-2 {
+    width: 600px;
+    height: 600px;
+    background: var(--color-magenta);
+    bottom: -150px;
+    right: -100px;
+}
+
+/* グラスモーフィズム共通 */
+.glass {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+}
+
+/* スクロールバー装飾 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.02);
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(0, 240, 255, 0.2);
+    border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 240, 255, 0.5);
+}
+
+/* アプリレイアウト */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding: 16px;
+    gap: 16px;
+}
+
+/* ヘッダー */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    min-height: 80px;
+    height: auto;
+    flex-shrink: 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.logo-icon {
+    font-size: 24px;
+    color: var(--color-cyan);
+    filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+    animation: pulse 3s infinite alternate;
+}
+.logo-title {
+    font-family: var(--font-mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    background: linear-gradient(90deg, #fff, #a5f3fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.logo-badge {
+    background: rgba(0, 240, 255, 0.1);
+    border: 1px solid var(--color-cyan);
+    color: var(--color-cyan);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+}
+
+.mode-selector {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.mode-label {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.toggle-button-group {
+    display: flex;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.btn-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-toggle.active {
+    background: var(--color-cyan);
+    color: #000;
+    box-shadow: var(--shadow-cyan);
+}
+.btn-toggle:not(.active):hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+/* メイン部分 */
+.app-main {
+    display: flex;
+    flex: 1;
+    gap: 16px;
+    min-height: 0; /* 子要素のスクロール制限に必須 */
+}
+
+/* サイドバー */
+.sidebar-left, .sidebar-right {
+    width: 300px;
+    flex-shrink: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    overflow-y: auto;
+}
+
+.section-title {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.section-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: -8px;
+    margin-bottom: 16px;
+}
+
+/* ツールボックスグリッド */
+.toolbox-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+.tool-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.tool-btn:hover {
+    background: rgba(0, 240, 255, 0.04);
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.15);
+}
+.tool-icon {
+    font-size: 18px;
+}
+.tool-btn span {
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* PLC レジスタリスト */
+.plc-register-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    overflow-y: auto;
+}
+.plc-reg-card {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.plc-reg-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.plc-reg-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--color-magenta);
+}
+.plc-reg-type {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+.plc-reg-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.plc-reg-input-num {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    border-radius: 4px;
+    padding: 4px;
+    width: 60px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-align: center;
+}
+.plc-reg-slider {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    outline: none;
+    accent-color: var(--color-magenta);
+}
+.plc-btn-bit {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 11px;
+    width: 100%;
+    transition: var(--transition);
+}
+.plc-btn-bit.active {
+    background: var(--color-magenta);
+    border-color: var(--color-magenta);
+    color: #fff;
+    box-shadow: var(--shadow-magenta);
+}
+
+/* 中央プレビュー領域 */
+.monitor-container-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    align-items: center;
+    overflow-y: auto;
+    padding: 20px 0;
+}
+
+.monitor-status-bar {
+    width: 1000px;
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    padding: 0 10px;
+}
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.status-indicator::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-green);
+    box-shadow: 0 0 8px var(--color-green);
+}
+
+/* モニターベゼル (5.5"枠) */
+.monitor-bezel {
+    background: #0f121d;
+    border: 10px solid #1a1e2e;
+    border-radius: 20px;
+    padding: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 5.5インチ モニタースクリーン (4Kの1/4スケール: 960x540) */
+.monitor-screen {
+    width: 960px;
+    height: 540px;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    border-radius: 4px;
+    box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+}
+
+/* 画面全体のフルコンテナ */
+.screen-full-container {
+    width: 960px;
+    height: 540px;
+    position: relative;
+    overflow: hidden;
+    background: #020617;
+    z-index: 2;
+}
+
+/* デ深度マップCanvas (通常UIの上にオーバーレイ) */
+#depth-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 960px;
+    height: 540px;
+    display: block;
+    z-index: 8;
+    pointer-events: none; /* 深度表示状態でも背後のUIパーツをドラッグ可能にする */
+    opacity: 0;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#depth-canvas.active {
+    opacity: 1;
+}
+
+/* モード・デプス制御コンテナ */
+.mode-control-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ヘッダー内の深度表示切り替えボタン (DESIGN(EDIT)の真下) */
+.btn-depth-control-header {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--color-cyan);
+    color: var(--color-cyan);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+    width: 100%;
+    justify-content: center;
+}
+.btn-depth-control-header:hover {
+    background: var(--color-cyan);
+    color: #000;
+    box-shadow: var(--shadow-cyan);
+}
+.btn-depth-control-header.active {
+    border-color: var(--color-magenta);
+    color: var(--color-magenta);
+    box-shadow: 0 0 10px rgba(255, 0, 127, 0.2);
+}
+.btn-depth-control-header.active:hover {
+    background: var(--color-magenta);
+    color: #fff;
+    box-shadow: var(--shadow-magenta);
+}
+
+/* シミュレーションモード時は深度調整ボタンを非表示にする */
+body.mode-sim .btn-depth-control-header {
+    display: none !important;
+}
+
+/* グリッドオーバレイ(デザイン用) */
+.grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(to right, rgba(0, 240, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 240, 255, 0.02) 1px, transparent 1px);
+    background-size: 20px 20px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.screen-label {
+    position: absolute;
+    bottom: 8px;
+    left: 12px;
+    font-family: var(--font-mono);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    pointer-events: none;
+}
+
+/* 通常映像内のUIオブジェクト(パーツ) */
+.ui-element {
+    position: absolute;
+    cursor: move;
+    border: 1px dashed transparent;
+    transition: box-shadow 0.15s;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-sans);
+    z-index: 5;
+}
+
+/* 編集モードでのオブジェクトホバー・アクティブ */
+body.mode-edit .ui-element:hover {
+    border-color: rgba(0, 240, 255, 0.5);
+    background: rgba(0, 240, 255, 0.05);
+}
+body.mode-edit .ui-element.selected {
+    border-color: var(--color-cyan);
+    background: rgba(0, 240, 255, 0.08);
+    box-shadow: var(--shadow-cyan);
+}
+
+/* シミュレーションモード時 */
+body.mode-sim .ui-element {
+    cursor: pointer;
+}
+
+/* UIパーツ個別のデザイン */
+/* 1. スイッチ (Switch) */
+.ui-element[data-type="switch"] .switch-bg {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px;
+    transition: var(--transition);
+}
+.ui-element[data-type="switch"] .switch-indicator {
+    width: 24px;
+    height: 6px;
+    background: #334155;
+    border-radius: 3px;
+    transition: var(--transition);
+}
+.ui-element[data-type="switch"].active .switch-indicator {
+    background: var(--theme-color, var(--color-cyan));
+    box-shadow: 0 0 10px var(--theme-color, var(--color-cyan));
+}
+.ui-element[data-type="switch"] .switch-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 2. ランプ (Lamp) */
+.ui-element[data-type="lamp"] .lamp-body {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+}
+.ui-element[data-type="lamp"].active .lamp-body {
+    background: var(--theme-color, var(--color-green));
+    box-shadow: 0 0 20px var(--theme-color, var(--color-green));
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.ui-element[data-type="lamp"] .lamp-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 3. 数値・文字列表示 (Data Display) */
+.ui-element[data-type="display"] .display-box {
+    width: 100%;
+    height: 100%;
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 6px 10px;
+}
+.ui-element[data-type="display"] .display-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.ui-element[data-type="display"] .display-val {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    color: var(--theme-color, var(--color-cyan));
+    text-align: right;
+}
+
+/* 4. メーター/スライダー (Meter) */
+.ui-element[data-type="meter"] .meter-box {
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.ui-element[data-type="meter"] .meter-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.ui-element[data-type="meter"] .meter-bar-bg {
+    flex: 1;
+    background: #1e293b;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.ui-element[data-type="meter"] .meter-bar-fill {
+    height: 100%;
+    width: 50%; /* 初期値 */
+    background: var(--theme-color, var(--color-cyan));
+    box-shadow: 0 0 10px var(--theme-color, var(--color-cyan));
+    transition: width 0.2s ease;
+}
+
+/* 5. テキストラベル (Text) */
+.ui-element[data-type="text"] .label-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--theme-color, var(--text-primary));
+    white-space: nowrap;
+}
+
+/* 下部プロジェクトデータパネル */
+.bottom-panel {
+    width: 1000px;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 12px;
+}
+.bottom-title {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+}
+.project-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* プロパティフォーム */
+.property-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.prop-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.prop-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.prop-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.prop-value-badge {
+    background: rgba(255, 179, 0, 0.1);
+    border: 1px solid var(--color-amber);
+    color: var(--color-amber);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+.prop-input {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    transition: var(--transition);
+}
+.prop-input:focus {
+    outline: none;
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+.prop-input[readonly] {
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.04);
+}
+.device-input-group {
+    display: flex;
+    gap: 8px;
+}
+.prop-select {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 6px;
+    padding: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+}
+.inline-input {
+    flex: 1;
+}
+.input-tip {
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.geometry-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+}
+.geo-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.geo-item input {
+    width: 100%;
+}
+
+.prop-depth-container {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    padding: 12px;
+}
+.depth-slider-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+}
+.depth-slider {
+    width: 100%;
+    accent-color: var(--color-amber);
+    cursor: pointer;
+}
+.depth-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.color-palette {
+    display: flex;
+    gap: 8px;
+}
+.color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.color-dot:hover {
+    transform: scale(1.1);
+}
+.color-dot.active {
+    border-color: var(--text-primary);
+    transform: scale(1.1);
+}
+.color-dot.cyan { background-color: var(--color-cyan); }
+.color-dot.magenta { background-color: var(--color-magenta); }
+.color-dot.green { background-color: var(--color-green); }
+.color-dot.amber { background-color: var(--color-amber); }
+.color-dot.blue { background-color: var(--color-blue); }
+
+.no-selection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    color: var(--text-muted);
+    gap: 16px;
+    text-align: center;
+}
+.no-sel-icon {
+    font-size: 32px;
+    color: rgba(255, 255, 255, 0.05);
+}
+
+/* ボタン汎用 */
+.btn {
+    border-radius: 6px;
+    border: 1px solid transparent;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-primary {
+    background: var(--color-cyan);
+    color: #000;
+    box-shadow: 0 4px 12px rgba(0, 240, 255, 0.25);
+}
+.btn-primary:hover {
+    background: #00d7e6;
+    box-shadow: var(--shadow-cyan);
+}
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+}
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+.btn-danger:hover {
+    background: #ef4444;
+    color: #fff;
+    box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+}
+.btn-full {
+    width: 100%;
+    justify-content: center;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.text-cyan { color: var(--color-cyan); }
+.text-magenta { color: var(--color-magenta); }
+.font-bold { font-weight: 600; }
+.font-mono { font-family: var(--font-mono); }
+
+/* ==========================================================================
+   アコーディオンメニュー & 新規オブジェクトスタイル
+   ========================================================================== */
+
+.accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+.accordion-item {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    transition: var(--transition);
+}
+.accordion-header {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.02);
+    border: none;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: var(--transition);
+}
+.accordion-header:hover {
+    background: rgba(0, 240, 255, 0.04);
+}
+.accordion-header.active {
+    background: rgba(0, 240, 255, 0.06);
+    border-bottom: 1px solid rgba(0, 240, 255, 0.1);
+}
+.accordion-header .arrow-icon {
+    transition: transform 0.2s ease;
+    font-size: 9px;
+    color: var(--text-muted);
+}
+.accordion-header.active .arrow-icon {
+    transform: rotate(180deg);
+    color: var(--color-cyan);
+}
+.accordion-content {
+    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+/* 1. 操作(スイッチ)バリエーション */
+.ui-element .switch-word-box,
+.ui-element .switch-num-box,
+.ui-element .switch-str-box,
+.ui-element .switch-screen-box {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(15, 23, 42, 0.85);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: var(--transition);
+}
+.ui-element .switch-header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.ui-element .switch-val-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    font-family: var(--font-mono);
+}
+.ui-element .switch-val {
+    font-size: 15px;
+    color: var(--theme-color, var(--color-cyan));
+}
+.ui-element .switch-icon {
+    font-size: 14px;
+    opacity: 0.6;
+    color: var(--text-secondary);
+}
+.ui-element.active .switch-word-box,
+.ui-element.active .switch-num-box,
+.ui-element.active .switch-str-box,
+.ui-element.active .switch-screen-box {
+    border-color: var(--theme-color, var(--color-cyan));
+    box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.1);
+}
+
+/* 2. ワードランプ */
+.ui-element[data-type="lamp_word"] .lamp-hexagon {
+    width: 100%;
+    height: 100%;
+    background: #1e293b;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 14px;
+    color: #fff;
+    transition: var(--transition);
+}
+.ui-element[data-type="lamp_word"].active-state-1 .lamp-hexagon {
+    background: rgba(0, 240, 255, 0.2);
+    border-color: var(--color-cyan);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+.ui-element[data-type="lamp_word"].active-state-2 .lamp-hexagon {
+    background: rgba(255, 0, 127, 0.2);
+    border-color: var(--color-magenta);
+    box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+}
+
+/* 3. アナログメーター */
+.ui-element .meter-analog-box {
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.ui-element .meter-analog-label {
+    font-size: 9px;
+    color: var(--text-secondary);
+    position: absolute;
+    bottom: 22px;
+}
+.ui-element .meter-analog-val {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--theme-color, var(--color-cyan));
+    position: absolute;
+    bottom: 6px;
+}
+.ui-element .meter-svg {
+    width: 80%;
+    height: 70%;
+    transform: translateY(-5px);
+}
+
+/* 4. グラフ表示 */
+.ui-element .graph-box {
+    width: 100%;
+    height: 100%;
+    background: #020617;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+.ui-element .graph-header {
+    font-size: 9px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    z-index: 2;
+}
+.ui-element .graph-plot-area {
+    flex: 1;
+    position: relative;
+    border-left: 1px solid rgba(255,255,255,0.15);
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    background-image: 
+        linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 15px 15px;
+}
+.ui-element .graph-svg-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* 5. データリスト・テーブル表示 */
+.ui-element .table-box {
+    width: 100%;
+    height: 100%;
+    background: #070a13;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-mono);
+}
+.ui-element .table-title {
+    font-size: 9px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+}
+.ui-element .table-widget {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+    text-align: left;
+}
+.ui-element .table-widget th {
+    color: var(--text-muted);
+    font-weight: 500;
+    padding-bottom: 2px;
+}
+.ui-element .table-widget td {
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    white-space: nowrap;
+}
+.ui-element .table-widget tr:last-child td {
+    border-bottom: none;
+}
+.ui-element .table-row-alert {
+    color: #ef4444;
+}
+.ui-element .table-row-normal {
+    color: var(--color-green);
+}
+
+/* ==========================================================================
+   リサイズハンドル & モーダルダイアログ
+   ========================================================================== */
+
+/* リサイズハンドル */
+.ui-element .resize-handle {
+    display: none;
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: var(--color-cyan);
+    border: 1px solid #fff;
+    bottom: -5px;
+    right: -5px;
+    cursor: se-resize;
+    z-index: 15;
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--color-cyan);
+}
+body.mode-edit .ui-element.selected .resize-handle {
+    display: block;
+}
+
+/* モーダルダイアログ基本 */
+.modal-dialog {
+    margin: auto;
+    width: 750px;
+    max-width: 90%;
+    max-height: 80vh;
+    border: 2px solid var(--color-cyan);
+    box-shadow: 0 0 30px rgba(0, 240, 255, 0.25);
+    color: var(--text-primary);
+    overflow: hidden;
+    outline: none;
+}
+.modal-dialog[id="modal-plc-registry"] {
+    border-color: var(--color-magenta);
+    box-shadow: 0 0 30px rgba(255, 0, 127, 0.25);
+}
+
+.modal-dialog::backdrop {
+    background: rgba(4, 7, 18, 0.85);
+    backdrop-filter: blur(8px);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.modal-header h3 {
+    font-family: var(--font-mono);
+    font-size: 16px;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 24px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.modal-close:hover {
+    color: #ef4444;
+}
+
+.modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(80vh - 70px);
+}
+
+/* マニュアル内の構成 */
+.user-guide-content {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+.user-guide-content h4 {
+    font-family: var(--font-mono);
+    color: var(--color-cyan);
+    margin-top: 16px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 4px;
+}
+.user-guide-content ul {
+    margin-left: 20px;
+    margin-bottom: 16px;
+}
+.user-guide-content li {
+    margin-bottom: 6px;
+}
+.user-guide-content strong {
+    color: var(--text-primary);
+}
+
+/* モーダル用データテーブル */
+.table-wrapper {
+    overflow-x: auto;
+}
+.modal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 12px;
+}
+.modal-table th {
+    color: var(--text-muted);
+    font-weight: 500;
+    text-align: left;
+    padding: 10px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+}
+.modal-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.modal-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* アニメーションキーフレーム */
+@keyframes pulse {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.05); opacity: 1; }
+}
+
+/* スマートガイド用スタイル */
+.smart-guide {
+    position: absolute;
+    display: none;
+    background-color: var(--color-magenta);
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 0 8px var(--color-magenta);
+}
+.smart-guide-v {
+    width: 2px;
+    height: 100%;
+    top: 0;
+}
+.smart-guide-h {
+    width: 100%;
+    height: 2px;
+    left: 0;
+}
+
+/* 仮想キーパッド＆キーボード (シミュレータ用) */
+.virtual-input-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(10, 15, 30, 0.7);
+    backdrop-filter: blur(8px);
+    z-index: 3000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.virtual-keypad, .virtual-keyboard {
+    background: rgba(20, 25, 45, 0.85);
+    border: 1px solid rgba(0, 240, 255, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.1);
+}
+
+.virtual-keypad {
+    width: 400px;
+}
+
+.virtual-keyboard {
+    width: 800px;
+}
+
+.virtual-input-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 10px;
+}
+
+.virtual-input-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: var(--color-cyan);
+    letter-spacing: 2px;
+}
+
+.virtual-input-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 24px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.virtual-input-close:hover {
+    color: var(--color-magenta);
+}
+
+.virtual-input-display-container {
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(0, 240, 255, 0.5);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+.virtual-input-display {
+    font-size: 32px;
+    color: var(--color-cyan);
+    font-family: var(--font-mono);
+    text-align: right;
+    min-height: 40px;
+    text-shadow: 0 0 8px var(--color-cyan);
+    word-break: break-all;
+}
+
+.virtual-keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.virtual-keyboard-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vkb-row {
+    display: flex;
+    gap: 8px;
+}
+
+.vk-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 20px;
+    font-family: var(--font-mono);
+    font-weight: bold;
+    padding: 16px 0;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    user-select: none;
+    text-align: center;
+    width: 60px; /* QWERTYの基本幅 */
+}
+
+.virtual-keypad-grid .vk-btn {
+    width: 100%;
+}
+
+.vk-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+}
+
+.vk-btn:active {
+    background: rgba(0, 240, 255, 0.3);
+    border-color: var(--color-cyan);
+    color: #fff;
+    transform: scale(0.95);
+}
+
+.vk-btn-action {
+    color: var(--color-magenta);
+    border-color: rgba(255, 0, 127, 0.3);
+}
+
+.vk-btn-action:hover {
+    background: rgba(255, 0, 127, 0.1);
+    border-color: var(--color-magenta);
+    box-shadow: 0 0 10px rgba(255, 0, 127, 0.3);
+}
+
+.vk-btn-action:active {
+    background: var(--color-magenta);
+    color: #fff;
+}
+
+.vk-btn-enter {
+    background: rgba(0, 255, 102, 0.1);
+    color: var(--color-green);
+    border-color: rgba(0, 255, 102, 0.3);
+}
+
+.vk-btn-enter:hover {
+    background: rgba(0, 255, 102, 0.2);
+    border-color: var(--color-green);
+    box-shadow: 0 0 10px rgba(0, 255, 102, 0.3);
+}
+
+.vk-btn-enter:active {
+    background: var(--color-green);
+    color: #000;
+}

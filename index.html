@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hikari Guide Designer - 5.5" PLC Monitor & Depth Editor</title>
+    <!-- Google Fonts: インダストリアルかつ洗練されたフォント -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 背景の動的グラデーション装飾 -->
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="app-container">
+        <!-- ヘッダー -->
+        <header class="app-header glass">
+            <div class="logo">
+                <i class="fa-solid fa-microchip logo-icon"></i>
+                <span class="logo-title">HIKARI GUIDE DESIGNER</span>
+                <span class="logo-badge">5.5" FIX EDITION</span>
+            </div>
+            
+            <div class="mode-control-container">
+                <div class="mode-selector">
+                    <span class="mode-label">MODE:</span>
+                    <div class="toggle-button-group">
+                        <button id="btn-mode-edit" class="btn-toggle active" onclick="setMode('edit')">
+                            <i class="fa-solid fa-pen-ruler"></i> DESIGN (EDIT)
+                        </button>
+                        <button id="btn-mode-sim" class="btn-toggle" onclick="setMode('sim')">
+                            <i class="fa-solid fa-play"></i> SIMULATE
+                        </button>
+                    </div>
+                </div>
+                <button id="btn-depth-control" class="btn-depth-control-header" onclick="toggleDepthControl()">
+                    <i class="fa-solid fa-circle-half-stroke"></i> Depth Control
+                </button>
+            </div>
+
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="loadSample('motor')">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Motor Demo
+                </button>
+                <button class="btn btn-secondary" onclick="loadSample('temperature')">
+                    <i class="fa-solid fa-temperature-half"></i> Temp Demo
+                </button>
+                <button class="btn btn-secondary text-magenta" onclick="openPlcRegisterModal()">
+                    <i class="fa-solid fa-table"></i> PLC Registry
+                </button>
+                <button class="btn btn-primary" onclick="openUserGuideModal()">
+                    <i class="fa-solid fa-circle-question"></i> User Guide
+                </button>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="app-main">
+            <!-- 左サイドバー: ツールボックス & PLCデバイス -->
+            <aside class="sidebar-left glass">
+                <!-- セクション: オブジェクト追加 (アコーディオン階層構造) -->
+                <div class="sidebar-section" id="section-toolbox">
+                    <h2 class="section-title"><i class="fa-solid fa-toolbox text-cyan"></i> UI OBJECTS</h2>
+                    <p class="section-desc">カテゴリを展開し、オブジェクトを追加します。</p>
+                    
+                    <div class="accordion">
+                        <!-- カテゴリ1: 操作(スイッチ)系 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header active" onclick="toggleAccordion(this)">
+                                <span class="header-title"><i class="fa-solid fa-toggle-on text-cyan"></i> 1. Switches & Inputs</span>
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </button>
+                            <div class="accordion-content" style="display: grid;">
+                                <button class="tool-btn" onclick="addNewObject('switch')">
+                                    <i class="fa-solid fa-toggle-off"></i><span>Bit Switch</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('switch_word')">
+                                    <i class="fa-solid fa-square-plus"></i><span>Word Switch</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('switch_num')">
+                                    <i class="fa-solid fa-calculator"></i><span>Num Input</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('switch_str')">
+                                    <i class="fa-solid fa-keyboard"></i><span>Str Input</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('switch_screen')">
+                                    <i class="fa-solid fa-arrow-right-to-bracket"></i><span>Screen Switch</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- カテゴリ2: 表示・インジケータ系 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="header-title"><i class="fa-solid fa-lightbulb text-green"></i> 2. Lamps & Displays</span>
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </button>
+                            <div class="accordion-content">
+                                <button class="tool-btn" onclick="addNewObject('lamp')">
+                                    <i class="fa-solid fa-circle"></i><span>Bit Lamp</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('lamp_word')">
+                                    <i class="fa-solid fa-circle-dot"></i><span>Word Lamp</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('display')">
+                                    <i class="fa-solid fa-digit"></i><span>Num Display</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('display_str')">
+                                    <i class="fa-solid fa-comment-dots"></i><span>Str Display</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- カテゴリ3: メーター・グラフ系 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="header-title"><i class="fa-solid fa-chart-line text-amber"></i> 3. Meters & Graphs</span>
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </button>
+                            <div class="accordion-content">
+                                <button class="tool-btn" onclick="addNewObject('meter_analog')">
+                                    <i class="fa-solid fa-compass"></i><span>Analog Meter</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('meter')">
+                                    <i class="fa-solid fa-chart-bar"></i><span>Bar Meter</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('graph_trend')">
+                                    <i class="fa-solid fa-wave-square"></i><span>Trend Graph</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('graph_line')">
+                                    <i class="fa-solid fa-chart-area"></i><span>Line Graph</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- カテゴリ4: データ・イベント管理系 -->
+                        <div class="accordion-item">
+                            <button class="accordion-header" onclick="toggleAccordion(this)">
+                                <span class="header-title"><i class="fa-solid fa-database text-magenta"></i> 4. Data & Events</span>
+                                <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                            </button>
+                            <div class="accordion-content">
+                                <button class="tool-btn" onclick="addNewObject('alarm_list')">
+                                    <i class="fa-solid fa-bell"></i><span>Alarm List</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('recipe_table')">
+                                    <i class="fa-solid fa-table-list"></i><span>Recipe Table</span>
+                                </button>
+                                <button class="tool-btn" onclick="addNewObject('logging_list')">
+                                    <i class="fa-solid fa-list-check"></i><span>Logging List</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- セクション: 仮想PLCデバイス -->
+                <div class="sidebar-section" id="section-plc">
+                    <h2 class="section-title"><i class="fa-solid fa-network-wired text-magenta"></i> VIRTUAL PLC REGISTER</h2>
+                    <p class="section-desc">シミュレート時のデバイス状態を制御します。</p>
+                    <div class="plc-register-list" id="plc-register-list">
+                        <!-- 動的に生成 -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 中央領域: 5.5インチモニタープレビュー -->
+            <section class="monitor-container-wrapper">
+                <div class="monitor-status-bar">
+                    <span class="status-indicator active">ONLINE</span>
+                    <span class="status-info">SCREEN SIZE: 5.5 INCH (3840x2160 4K RESOLUTION)</span>
+                    <span class="status-device" id="active-mode-status">DESIGNING MODE</span>
+                </div>
+                
+                <!-- 5.5インチモニター外枠 -->
+                <div class="monitor-bezel">
+                    <div class="monitor-screen" id="monitor-screen">
+                        
+                        <!-- 画面全体: 通常表示 (RGB UI) -->
+                        <div class="screen-full-container" id="rgb-canvas-container">
+                            <!-- 動的UIエレメントがここに配置される -->
+                            <div class="grid-overlay"></div>
+                            <!-- スマートガイド用線 -->
+                            <div id="smart-guide-v" class="smart-guide smart-guide-v"></div>
+                            <div id="smart-guide-h" class="smart-guide smart-guide-h"></div>
+                        </div>
+
+                        <!-- 画面全体: 被写界深度情報 Canvas (オーバーレイ表示用) -->
+                        <canvas id="depth-canvas" width="3840" height="2160"></canvas>
+
+                        <div class="screen-label" id="view-mode-label">RGB VIEW</div>
+                    </div>
+                </div>
+
+                <!-- 下部データ管理パネル -->
+                <div class="bottom-panel glass">
+                    <div class="bottom-title" style="display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fa-solid fa-file-code"></i> PROJECT DATA</span>
+                        <span id="current-project-name" style="font-size: 12px; color: var(--color-cyan); font-family: var(--font-mono); font-weight: normal; letter-spacing: 0.5px;">Factory Sample</span>
+                    </div>
+                    <div class="project-actions">
+                        <button class="btn btn-primary" onclick="exportProject()">
+                            <i class="fa-solid fa-file-export"></i> Export JSON
+                        </button>
+                        <button class="btn btn-secondary" onclick="triggerImport()">
+                            <i class="fa-solid fa-file-import"></i> Import JSON
+                        </button>
+                        <input type="file" id="import-file-input" style="display: none;" onchange="importProject(event)">
+                        <button class="btn btn-danger" onclick="clearProject()">
+                            <i class="fa-solid fa-trash-can"></i> Clear All
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右サイドバー: プロパティパネル -->
+            <aside class="sidebar-right glass" id="property-sidebar">
+                <h2 class="section-title"><i class="fa-solid fa-sliders text-amber"></i> PROPERTIES</h2>
+                <div id="no-selection-msg" class="no-selection">
+                    <i class="fa-solid fa-arrow-pointer no-sel-icon"></i>
+                    <p>パーツを選択または追加してください。</p>
+                </div>
+
+                <div id="property-form" class="property-form hidden">
+                    <!-- オブジェクト基本プロパティ -->
+                    <div class="prop-group">
+                        <label class="prop-label">ID / Type</label>
+                        <input type="text" id="prop-id" class="prop-input" readonly>
+                    </div>
+
+                    <!-- 深度情報 (±20mm) -->
+                    <div class="prop-group prop-depth-container">
+                        <div class="prop-label-row">
+                            <label class="prop-label font-bold text-amber"><i class="fa-solid fa-arrows-up-down"></i> DEPTH (±20mm)</label>
+                            <span id="prop-depth-val" class="prop-value-badge font-mono">0.0 mm</span>
+                        </div>
+                        <div class="depth-slider-wrapper">
+                            <input type="range" id="prop-depth" min="-20" max="20" step="0.5" value="0" class="depth-slider" oninput="updateActiveObjectDepth(this.value)">
+                            <div class="depth-scale">
+                                <span>-20mm (Black)</span>
+                                <span>0mm</span>
+                                <span>+20mm (White)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- デバイス割り当て -->
+                    <div class="prop-group">
+                        <label class="prop-label"><i class="fa-solid fa-tag"></i> PLC Device Register</label>
+                        <div class="device-input-group">
+                            <select id="prop-device-type" class="prop-select" onchange="updateActiveObjectDeviceType(this.value)">
+                                <option value="M">M (Bit)</option>
+                                <option value="D">D (Word)</option>
+                            </select>
+                            <input type="number" id="prop-device-addr" min="0" max="9999" class="prop-input inline-input" placeholder="Addr" oninput="updateActiveObjectDeviceAddr(this.value)">
+                        </div>
+                        <p class="input-tip">例: M100 (ビット), D200 (データ/メーター)</p>
+                    </div>
+
+                    <!-- ラベルテキスト -->
+                    <div class="prop-group" id="group-prop-text">
+                        <label class="prop-label">Label Text</label>
+                        <input type="text" id="prop-text" class="prop-input" oninput="updateActiveObjectText(this.value)">
+                    </div>
+
+                    <!-- 位置とサイズ -->
+                    <div class="prop-group">
+                        <label class="prop-label">Geometry</label>
+                        <div class="geometry-grid">
+                            <div class="geo-item">
+                                <span>X:</span>
+                                <input type="number" id="prop-x" class="prop-input compact" oninput="updateActiveObjectGeometry('x', this.value)">
+                            </div>
+                            <div class="geo-item">
+                                <span>Y:</span>
+                                <input type="number" id="prop-y" class="prop-input compact" oninput="updateActiveObjectGeometry('y', this.value)">
+                            </div>
+                            <div class="geo-item">
+                                <span>W:</span>
+                                <input type="number" id="prop-w" class="prop-input compact" oninput="updateActiveObjectGeometry('w', this.value)">
+                            </div>
+                            <div class="geo-item">
+                                <span>H:</span>
+                                <input type="number" id="prop-h" class="prop-input compact" oninput="updateActiveObjectGeometry('h', this.value)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 特殊プロパティ (スイッチ/メーターのしきい値や最大値) -->
+                    <div class="prop-group" id="group-prop-max" class="hidden">
+                        <label class="prop-label">Max Value</label>
+                        <input type="number" id="prop-max" class="prop-input" oninput="updateActiveObjectMax(this.value)">
+                    </div>
+
+                    <!-- 配色設定 -->
+                    <div class="prop-group">
+                        <label class="prop-label">Theme Color</label>
+                        <div class="color-palette">
+                            <button class="color-dot cyan active" onclick="updateActiveObjectColor('#00f0ff')"></button>
+                            <button class="color-dot magenta" onclick="updateActiveObjectColor('#ff007f')"></button>
+                            <button class="color-dot green" onclick="updateActiveObjectColor('#00ff66')"></button>
+                            <button class="color-dot amber" onclick="updateActiveObjectColor('#ffb300')"></button>
+                            <button class="color-dot blue" onclick="updateActiveObjectColor('#0066ff')"></button>
+                        </div>
+                    </div>
+
+                    <!-- 操作 -->
+                    <div class="prop-actions">
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <button class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;" onclick="changeZIndex('front')">
+                                <i class="fa-solid fa-arrow-up-from-bracket"></i> Bring Front
+                            </button>
+                            <button class="btn btn-secondary" style="flex: 1; font-size: 11px; padding: 6px;" onclick="changeZIndex('back')">
+                                <i class="fa-solid fa-arrow-down-to-bracket"></i> Send Back
+                            </button>
+                        </div>
+                        <button class="btn btn-danger btn-full" onclick="deleteActiveObject()">
+                            <i class="fa-solid fa-trash"></i> Delete Object
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- PLC Registry 一覧モーダル -->
+    <dialog id="modal-plc-registry" class="modal-dialog glass">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-table text-magenta"></i> PLC Device Registry</h3>
+            <button class="modal-close" onclick="closePlcRegisterModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="table-wrapper">
+                <table class="modal-table">
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>Object ID</th>
+                            <th>Type</th>
+                            <th>Depth (mm)</th>
+                            <th>Current Value</th>
+                        </tr>
+                    </thead>
+                    <tbody id="plc-registry-table-body">
+                        <!-- JSで動的生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </dialog>
+
+    <!-- User Guide 使用方法説明モーダル -->
+    <dialog id="modal-user-guide" class="modal-dialog glass">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-circle-question text-cyan"></i> Hikari Guide Designer Manual</h3>
+            <button class="modal-close" onclick="closeUserGuideModal()">&times;</button>
+        </div>
+        <div class="modal-body user-guide-content">
+            <h4>1. 基本操作モード</h4>
+            <ul>
+                <li><strong>DESIGN (EDIT) モード</strong>: パーツの配置、移動、サイズ調整、プロパティ変更を行います。</li>
+                <li><strong>SIMULATE モード</strong>: 仮想PLCと同期し、デバイスの値の変化に連動してUIの表示が変化する様子を模擬します。</li>
+            </ul>
+            <h4>2. UIオブジェクトの操作とショートカット</h4>
+            <ul>
+                <li>選択したオブジェクトは、マウスでドラッグして移動できます。</li>
+                <li>選択時に右下に表示されるハンドルをドラッグすると、サイズを変更できます。</li>
+                <li><strong>四角形パーツ</strong>: 縦横を自由に引き伸ばしてサイズ変更できます。</li>
+                <li><strong>丸型パーツ (Bit Lamp)</strong>: 縦横比率を維持したまま、均等にサイズ変更されます。</li>
+                <li><span class="text-amber"><i class="fa-solid fa-magnet"></i> グリッドスナップ</span>: <strong>Shiftキー</strong> を押しながら移動やリサイズを行うと、一定間隔（10px）で吸着し、整列しやすくなります。</li>
+                <li><span class="text-danger"><i class="fa-solid fa-keyboard"></i> 削除ショートカット</span>: オブジェクトを選択した状態で <strong>Delete</strong> または <strong>Backspace</strong> キーを押すと即座に削除できます。</li>
+            </ul>
+            <h4>3. プロパティと重なり順 (Z-Index)</h4>
+            <ul>
+                <li>右側のパネルから、割り当てるデバイスやテーマカラー、被写界深度 (Depth) などを変更できます。</li>
+                <li>オブジェクトが重なっている場合は、パネル下部の <strong>Bring Front (前面へ)</strong> / <strong>Send Back (背面へ)</strong> ボタンで重なり順を調整できます。</li>
+            </ul>
+            <h4>4. Depth Control (被写界深度設定)</h4>
+            <ul>
+                <li>DESIGNモード中、トグルの直下にある「Depth Control」ボタンを押すと、画面全体がグレースケールの被写界深度（±20mm）マップに切り替わります。</li>
+                <li>グレー背景が基準面（0mm）で、明るい部分が手前に突出し（最大+20mm）、暗い部分が奥に凹んでいる（最小-20mm）ことを表現します。</li>
+            </ul>
+            <h4>5. PLC Device Registry とシミュレーション</h4>
+            <ul>
+                <li>画面右上の「PLC Device Register」ボタンから、現在使用中のデバイス一覧を確認できます。</li>
+                <li><span class="text-cyan"><i class="fa-solid fa-pen-to-square"></i> 一覧内で直接、デバイスの割り当てや Object ID（名称）を変更することが可能です。</span></li>
+                <li>SIMULATEモードに移行し、仮想PLC操作盤から状態を変化させて連動テストを行います。</li>
+            </ul>
+        </div>
+    </dialog>
+
+    <!-- 仮想キーパッド (KEYPAD IN) モーダル -->
+    <div id="virtual-keypad-overlay" class="virtual-input-overlay" style="display: none;">
+        <div class="virtual-keypad glass">
+            <div class="virtual-input-header">
+                <span class="virtual-input-title"><i class="fa-solid fa-calculator"></i> NUMERIC KEYPAD</span>
+                <button class="virtual-input-close" onclick="closeVirtualKeypad()">&times;</button>
+            </div>
+            <div class="virtual-input-display-container">
+                <div class="virtual-input-display" id="vk-display">0</div>
+            </div>
+            <div class="virtual-keypad-grid">
+                <button class="vk-btn" onclick="handleKeypadInput('7')">7</button>
+                <button class="vk-btn" onclick="handleKeypadInput('8')">8</button>
+                <button class="vk-btn" onclick="handleKeypadInput('9')">9</button>
+                <button class="vk-btn vk-btn-action" onclick="handleKeypadInput('DEL')">DEL</button>
+                
+                <button class="vk-btn" onclick="handleKeypadInput('4')">4</button>
+                <button class="vk-btn" onclick="handleKeypadInput('5')">5</button>
+                <button class="vk-btn" onclick="handleKeypadInput('6')">6</button>
+                <button class="vk-btn vk-btn-action" onclick="handleKeypadInput('CLR')">CLR</button>
+                
+                <button class="vk-btn" onclick="handleKeypadInput('1')">1</button>
+                <button class="vk-btn" onclick="handleKeypadInput('2')">2</button>
+                <button class="vk-btn" onclick="handleKeypadInput('3')">3</button>
+                <button class="vk-btn vk-btn-enter" style="grid-row: span 2;" onclick="handleKeypadInput('ENT')">ENT</button>
+                
+                <button class="vk-btn" onclick="handleKeypadInput('0')">0</button>
+                <button class="vk-btn" onclick="handleKeypadInput('00')">00</button>
+                <button class="vk-btn" onclick="handleKeypadInput('-')">+/-</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 仮想キーボード (QWERTY) モーダル -->
+    <div id="virtual-keyboard-overlay" class="virtual-input-overlay" style="display: none;">
+        <div class="virtual-keyboard glass">
+            <div class="virtual-input-header">
+                <span class="virtual-input-title"><i class="fa-solid fa-keyboard"></i> QWERTY KEYBOARD</span>
+                <button class="virtual-input-close" onclick="closeVirtualKeyboard()">&times;</button>
+            </div>
+            <div class="virtual-input-display-container">
+                <div class="virtual-input-display" id="vkb-display"></div>
+            </div>
+            <div class="virtual-keyboard-rows">
+                <div class="vkb-row">
+                    <button class="vk-btn" onclick="handleKeyboardInput('1')">1</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('2')">2</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('3')">3</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('4')">4</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('5')">5</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('6')">6</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('7')">7</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('8')">8</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('9')">9</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('0')">0</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('-')">-</button>
+                    <button class="vk-btn vk-btn-action" style="width: 80px;" onclick="handleKeyboardInput('DEL')">DEL</button>
+                </div>
+                <div class="vkb-row" style="margin-left: 20px;">
+                    <button class="vk-btn" onclick="handleKeyboardInput('Q')">Q</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('W')">W</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('E')">E</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('R')">R</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('T')">T</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('Y')">Y</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('U')">U</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('I')">I</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('O')">O</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('P')">P</button>
+                </div>
+                <div class="vkb-row" style="margin-left: 40px;">
+                    <button class="vk-btn" onclick="handleKeyboardInput('A')">A</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('S')">S</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('D')">D</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('F')">F</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('G')">G</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('H')">H</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('J')">J</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('K')">K</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('L')">L</button>
+                </div>
+                <div class="vkb-row" style="margin-left: 60px;">
+                    <button class="vk-btn" onclick="handleKeyboardInput('Z')">Z</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('X')">X</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('C')">C</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('V')">V</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('B')">B</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('N')">N</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('M')">M</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput(',')">,</button>
+                    <button class="vk-btn" onclick="handleKeyboardInput('.')">.</button>
+                    <button class="vk-btn vk-btn-action" style="width: 80px;" onclick="handleKeyboardInput('CLR')">CLR</button>
+                </div>
+                <div class="vkb-row" style="justify-content: center; margin-top: 10px;">
+                    <button class="vk-btn vk-btn-space" style="width: 400px;" onclick="handleKeyboardInput(' ')">SPACE</button>
+                    <button class="vk-btn vk-btn-enter" style="width: 120px; margin-left: 10px;" onclick="handleKeyboardInput('ENT')">ENTER</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript のロード -->
+    <script src="app.js"></script>
+</body>
+</html>
