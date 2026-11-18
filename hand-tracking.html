@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ハンドトラッキング</title>
+<style>
+  :root { --bg:#0f1220; --card:#1a1f36; --accent:#4ade80; --text:#eef0ff; --sub:#9aa0c0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, "Hiragino Sans", sans-serif; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 12px; gap: 12px; }
+  h1 { font-size: 18px; }
+  #stage { position: relative; width: 100%; max-width: 640px; background: #000; border-radius: 16px; overflow: hidden; aspect-ratio: 3/4; }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #hud { position: absolute; left: 0; right: 0; top: 0; padding: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+  .badge { align-self: flex-start; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); border-radius: 12px; padding: 6px 12px; font-size: 15px; font-weight: 600; }
+  .badge b { color: var(--accent); font-size: 22px; }
+  #msg { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--sub); line-height: 1.6; }
+  .row { display: flex; gap: 8px; width: 100%; max-width: 640px; flex-wrap: wrap; }
+  button { flex: 1; min-width: 100px; padding: 12px; border: 0; border-radius: 12px; background: var(--card); color: var(--text); font-size: 15px; font-weight: 600; }
+  button.primary { background: var(--accent); color: #062b14; }
+  button.on { outline: 2px solid var(--accent); }
+  .help { width: 100%; max-width: 640px; background: var(--card); border-radius: 12px; padding: 10px 14px; font-size: 13px; color: var(--sub); line-height: 1.7; }
+</style>
+</head>
+<body>
+<h1>✋ ハンドジェスチャートラッキング</h1>
+
+<div id="stage">
+  <video id="video" playsinline muted></video>
+  <canvas id="canvas"></canvas>
+  <canvas id="draw"></canvas>
+  <div id="hud">
+    <div class="badge" id="gesture" hidden></div>
+    <div class="badge" id="count" hidden></div>
+  </div>
+  <div id="msg">「カメラ開始」を押してください。<br>映像は端末内で処理され、送信されません。</div>
+</div>
+
+<div class="row">
+  <button class="primary" id="start">カメラ開始</button>
+  <button id="flip" disabled>カメラ切替</button>
+  <button id="drawToggle" disabled>お絵描き: OFF</button>
+  <button id="clear" disabled>消す</button>
+</div>
+
+<div class="help">
+  認識できるジェスチャー: ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK<br>
+  お絵描き: ONにして、親指と人差し指をつまむと線が引けます。<br>
+  <span id="fps">FPS: -</span>
+</div>
+
+<script type="module">
+import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+const video = $("video"), canvas = $("canvas"), ctx = canvas.getContext("2d");
+const drawCv = $("draw"), dctx = drawCv.getContext("2d");
+let landmarker = null, stream = null, facing = "user", running = false;
+let drawMode = false, lastPt = {}, lastTs = -1;
+let frames = 0, fpsT = performance.now();
+
+const CONNECTIONS = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+const COLORS = ["#4ade80", "#60a5fa"];
+
+async function loadModel() {
+  const fileset = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  const opts = delegate => ({
+    baseOptions: {
+      modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+      delegate
+    },
+    runningMode: "VIDEO", numHands: 2
+  });
+  try { landmarker = await HandLandmarker.createFromOptions(fileset, opts("GPU")); }
+  catch (e) { landmarker = await HandLandmarker.createFromOptions(fileset, opts("CPU")); }
+}
+
+async function startCamera() {
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { facingMode: facing, width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false
+  });
+  video.srcObject = stream;
+  await video.play();
+  canvas.width = drawCv.width = video.videoWidth;
+  canvas.height = drawCv.height = video.videoHeight;
+  $("stage").style.aspectRatio = `${video.videoWidth}/${video.videoHeight}`;
+  // 背面カメラは鏡像にしない
+  const m = facing === "user" ? "scaleX(-1)" : "none";
+  video.style.transform = canvas.style.transform = drawCv.style.transform = m;
+}
+
+// --- ジェスチャー判定 ---
+const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function fingerStates(lm) {
+  const w = lm[0];
+  const ext = (tip, pip) => d(lm[tip], w) > d(lm[pip], w) * 1.05;
+  return {
+    thumb: d(lm[4], lm[17]) > d(lm[3], lm[17]) * 1.05 && d(lm[4], lm[5]) > d(lm[3], lm[5]) * 0.9,
+    index: ext(8, 6), middle: ext(12, 10), ring: ext(16, 14), pinky: ext(20, 18)
+  };
+}
+function classify(lm) {
+  const f = fingerStates(lm);
+  const size = d(lm[0], lm[9]);
+  const pinch = d(lm[4], lm[8]) / size;
+  const others = f.middle && f.ring && f.pinky;
+  const n = Object.values(f).filter(Boolean).length;
+  let name = "—";
+  if (pinch < 0.3 && others) name = "👌 OK";
+  else if (n === 0 || (!f.index && !f.middle && !f.ring && !f.pinky)) {
+    name = f.thumb && lm[4].y < lm[3].y && lm[4].y < lm[5].y ? "👍 サムズアップ" : "✊ グー";
+  }
+  else if (n === 5) name = "🖐 パー";
+  else if (f.index && f.middle && !f.ring && !f.pinky) name = "✌ ピース";
+  else if (f.index && !f.middle && !f.ring && !f.pinky) name = "☝ 人差し指";
+  else name = `${n}本指`;
+  return { name, count: n, pinching: pinch < 0.25 };
+}
+
+// --- メインループ ---
+function loop() {
+  if (!running) return;
+  requestAnimationFrame(loop);
+  if (video.readyState < 2 || video.currentTime === lastTs) return;
+  lastTs = video.currentTime;
+  const res = landmarker.detectForVideo(video, performance.now());
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const gestures = [], counts = [], seen = new Set();
+  res.landmarks.forEach((lm, i) => {
+    const col = COLORS[i % 2];
+    ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, W / 200);
+    ctx.beginPath();
+    CONNECTIONS.forEach(([a, b]) => { ctx.moveTo(lm[a].x * W, lm[a].y * H); ctx.lineTo(lm[b].x * W, lm[b].y * H); });
+    ctx.stroke();
+    ctx.fillStyle = "#fff";
+    lm.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 160, 0, 7); ctx.fill(); });
+
+    const g = classify(lm);
+    const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
+    // カメラは鏡像なので左右を入れ替えて表示
+    const side = facing === "user" ? (hand === "Left" ? "右手" : "左手") : (hand === "Left" ? "左手" : "右手");
+    gestures.push(`${side}: ${g.name}`);
+    counts.push(g.count);
+
+    if (drawMode) {
+      const tip = { x: (lm[4].x + lm[8].x) / 2 * W, y: (lm[4].y + lm[8].y) / 2 * H };
+      seen.add(i);
+      if (g.pinching) {
+        const p = lastPt[i];
+        dctx.strokeStyle = col; dctx.lineWidth = W / 90; dctx.lineCap = "round";
+        if (p) { dctx.beginPath(); dctx.moveTo(p.x, p.y); dctx.lineTo(tip.x, tip.y); dctx.stroke(); }
+        lastPt[i] = tip;
+      } else lastPt[i] = null;
+      ctx.fillStyle = g.pinching ? "#facc15" : "rgba(255,255,255,.6)";
+      ctx.beginPath(); ctx.arc(tip.x, tip.y, W / 60, 0, 7); ctx.fill();
+    }
+  });
+  Object.keys(lastPt).forEach(k => { if (!seen.has(+k)) lastPt[k] = null; });
+
+  const gEl = $("gesture"), cEl = $("count");
+  if (gestures.length) {
+    gEl.hidden = cEl.hidden = false;
+    gEl.innerHTML = gestures.join("<br>");
+    cEl.innerHTML = `指の合計: <b>${counts.reduce((a, b) => a + b, 0)}</b>`;
+  } else { gEl.hidden = cEl.hidden = true; }
+
+  frames++;
+  const now = performance.now();
+  if (now - fpsT > 1000) { $("fps").textContent = `FPS: ${frames}`; frames = 0; fpsT = now; }
+}
+
+// --- UI ---
+$("start").onclick = async () => {
+  const btn = $("start"); btn.disabled = true; btn.textContent = "読み込み中…";
+  try {
+    if (!landmarker) await loadModel();
+    await startCamera();
+    $("msg").hidden = true;
+    ["flip", "drawToggle", "clear"].forEach(id => $(id).disabled = false);
+    btn.textContent = "実行中"; running = true; loop();
+  } catch (e) {
+    console.error(e);
+    btn.disabled = false; btn.textContent = "再試行";
+    $("msg").hidden = false;
+    $("msg").textContent = "開始できませんでした: " + (e.name === "NotAllowedError" ? "カメラの許可が必要です。" : e.message);
+  }
+};
+$("flip").onclick = async () => { facing = facing === "user" ? "environment" : "user"; await startCamera(); };
+$("drawToggle").onclick = e => { drawMode = !drawMode; e.target.textContent = `お絵描き: ${drawMode ? "ON" : "OFF"}`; e.target.classList.toggle("on", drawMode); lastPt = {}; };
+$("clear").onclick = () => dctx.clearRect(0, 0, drawCv.width, drawCv.height);
+</script>
+</body>
+</html>
