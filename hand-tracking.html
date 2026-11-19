@@ -23,6 +23,14 @@
   .help { width: 100%; font-size: 11.5px; color: var(--sub); line-height: 1.55; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
   .help::-webkit-scrollbar { display: none; }
   #dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(15,18,32,.85); backdrop-filter: blur(8px); }
+  #msg[hidden] { display: none !important; }
+  @media (orientation: landscape) {
+    video, canvas { object-fit: cover; }
+    #bg { display: none; }
+    h1 { font-size: 12px; top: calc(4px + env(safe-area-inset-top)); }
+    #hud { top: 28px; }
+    #dock { padding-top: 5px; padding-bottom: calc(5px + env(safe-area-inset-bottom)); }
+  }
   #toast { position: absolute; top: 16%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.65); backdrop-filter: blur(6px); border-radius: 14px; padding: 10px 18px; font-size: 17px; font-weight: 700; z-index: 7; pointer-events: none; }
 </style>
 <script type="importmap">
@@ -45,6 +53,7 @@
     <div class="badge" id="count" hidden></div>
     <div class="badge" id="wave" hidden></div>
     <div class="badge" id="gp" hidden></div>
+    <div class="badge" id="charge" hidden></div>
   </div>
   <div id="toast" hidden></div>
   <div id="msg">「カメラ開始」を押してください。<br>映像は端末内で処理され、送信されません。</div>
@@ -59,7 +68,7 @@
 </div>
 
 <div class="help">
-  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除 ｜ <span id="fps">FPS: -</span>
+  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除 ｜ グーを5秒キープ→パーでリパルサー3秒発射 ｜ 横向きで横画面全面 ｜ <span id="fps">FPS: -</span>
 </div>
 </div>
 
@@ -89,10 +98,16 @@ async function loadModel() {
   catch (e) { landmarker = await HandLandmarker.createFromOptions(fileset, opts("CPU")); }
 }
 
+let camLand = null;
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
+  const land = innerWidth > innerHeight;
+  camLand = land;
   stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: facing, width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false
+    video: land
+      ? { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16/9 } }
+      : { facingMode: facing, width: { ideal: 960 }, height: { ideal: 1280 }, aspectRatio: { ideal: 3/4 } },
+    audio: false
   });
   video.srcObject = stream;
   bg.srcObject = stream;
@@ -171,6 +186,62 @@ function trackWave(x) {
   }
 }
 
+// --- リパルサー: グー5秒キープ -> パーで3秒発射 ---
+let fistSince = 0, fistArmed = false, fistReleaseT = 0, blastUntil = 0;
+function trackRepulsor(g) {
+  const now = performance.now();
+  if (now < blastUntil) return;
+  const isFist = g.name.includes("グー");
+  const isOpen = g.count === 5;
+  if (fistArmed) {
+    if (isOpen) {
+      blastUntil = now + 3000; fistArmed = false; fistSince = 0; fistReleaseT = 0;
+      showToast("💥 リパルサー発射！");
+      return;
+    }
+    if (!isFist) {
+      if (!fistReleaseT) fistReleaseT = now;
+      if (now - fistReleaseT > 2500) { fistArmed = false; fistReleaseT = 0; }
+    } else fistReleaseT = 0;
+    return;
+  }
+  if (isFist) {
+    if (!fistSince) fistSince = now;
+    else if (now - fistSince >= 5000) { fistArmed = true; fistReleaseT = 0; showToast("⚡ 充電完了！パーで発射"); }
+  } else fistSince = 0;
+}
+function drawBlast2D(lm) {
+  const now = performance.now();
+  if (now >= blastUntil) return;
+  const W = canvas.width, H = canvas.height;
+  const c = palmCenter(lm), x = c.x * W, y = c.y * H;
+  const size = d(lm[0], lm[9]) * W;
+  const remain = (blastUntil - now) / 3000;
+  const flick = 0.9 + Math.random() * 0.2;
+  const R = size * (2.6 - remain * 0.8) * flick;
+  ctx.save();
+  const gr = ctx.createRadialGradient(x, y, 0, x, y, R);
+  gr.addColorStop(0, "rgba(255,255,255,.95)");
+  gr.addColorStop(0.25, "rgba(165,225,255,.75)");
+  gr.addColorStop(0.6, "rgba(56,189,248,.28)");
+  gr.addColorStop(1, "rgba(56,189,248,0)");
+  ctx.fillStyle = gr;
+  ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill();
+  ctx.strokeStyle = "rgba(190,240,255,.85)"; ctx.lineWidth = Math.max(2, W/180);
+  for (let k = 0; k < 3; k++) {
+    const rr = size * (0.35 + ((now/260 + k*0.33) % 1) * 1.5);
+    ctx.globalAlpha = 1 - ((now/260 + k*0.33) % 1);
+    ctx.beginPath(); ctx.arc(x, y, rr, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = 0.75; ctx.strokeStyle = "#bfeaff"; ctx.lineWidth = Math.max(1.5, W/260);
+  for (let k = 0; k < 12; k++) {
+    const a = (k/12) * Math.PI * 2 + Math.random() * 0.25;
+    const r1 = size * 0.22, r2 = R * (0.65 + Math.random() * 0.4);
+    ctx.beginPath(); ctx.moveTo(x + Math.cos(a)*r1, y + Math.sin(a)*r1); ctx.lineTo(x + Math.cos(a)*r2, y + Math.sin(a)*r2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
 // --- グーパー×3でアーマー装着（パーツが手に集まってくる演出） ---
 let armorMode = "off"; // off | assembling | on | releasing
 let armorParts = [], armorT0 = 0;
@@ -215,6 +286,28 @@ function partTarget(d, lm, W, H) {
   const A = lm[d.a], B = lm[d.b];
   return { x: (A.x + B.x) / 2 * W, y: (A.y + B.y) / 2 * H, ang: Math.atan2((B.y - A.y) * H, (B.x - A.x) * W) };
 }
+function drawForearm2D(lm, W, H, size) {
+  const wrist = lm[0], mid = lm[9];
+  let vx = wrist.x - mid.x, vy = wrist.y - mid.y;
+  const vl = Math.hypot(vx, vy) || 1; vx/=vl; vy/=vl;
+  const px = -vy, py = vx;
+  const len = size * 1.9, w1 = size * 0.34, w2 = size * 0.46;
+  const x0 = wrist.x*W, y0 = wrist.y*H;
+  const x1 = x0 + vx*len, y1 = y0 + vy*len;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(x0+px*w1, y0+py*w1); ctx.lineTo(x1+px*w2, y1+py*w2); ctx.lineTo(x1-px*w2, y1-py*w2); ctx.lineTo(x0-px*w1, y0-py*w1); ctx.closePath();
+  ctx.fillStyle = "rgba(176,32,38,.88)"; ctx.fill();
+  ctx.strokeStyle = "#e8b13a"; ctx.lineWidth = Math.max(2, W/220); ctx.stroke();
+  // gold side panels + panel lines
+  ctx.strokeStyle = "rgba(232,177,58,.9)"; ctx.lineWidth = Math.max(2, W/300);
+  [0.35, 0.65].forEach(t => {
+    const cx = x0 + vx*len*t, cy = y0 + vy*len*t, ww = w1 + (w2-w1)*t;
+    ctx.beginPath(); ctx.moveTo(cx+px*ww, cy+py*ww); ctx.lineTo(cx-px*ww, cy-py*ww); ctx.stroke();
+  });
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = "rgba(255,215,120,.55)"; ctx.stroke();
+  ctx.restore();
+}
 function drawArmor(lm) {
   const W = canvas.width, H = canvas.height, now = performance.now();
   const size = d(lm[0], lm[9]) * W;
@@ -240,6 +333,7 @@ function drawArmor(lm) {
     return;
   }
   if (armorMode !== "on") return;
+  drawForearm2D(lm, W, H, size);
   // 手の甲プレート
   ctx.save();
   ctx.beginPath();
@@ -271,7 +365,7 @@ function drawArmor(lm) {
 }
 
 // --- 3Dアーマー (Three.js / 金属質感のパーツ) ---
-let T = null, tRenderer, tScene, tCamera, tGroup, tParts = [], tRepulsor, tRing, tLight;
+let T = null, tRenderer, tScene, tCamera, tGroup, tParts = [], tRepulsor, tRing, tLight, tForearm, tForearmRing, tForearmPanel, tBeam, tKnuckles = [];
 let use3D = false, tReady = false;
 async function init3D() {
   try {
@@ -287,9 +381,11 @@ async function init3D() {
     const key = new T.DirectionalLight(0xffffff, 1.4); key.position.set(200, 300, 500); tScene.add(key);
     tLight = new T.PointLight(0x66ccff, 0, 1200); tScene.add(tLight);
     tGroup = new T.Group(); tScene.add(tGroup);
-    const red = new T.MeshPhysicalMaterial({ color: 0xb01e28, metalness: 0.85, roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.25 });
-    const gold = new T.MeshPhysicalMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.27, clearcoat: 0.4 });
-    const geo = new T.BoxGeometry(1, 1, 1);
+    const red = new T.MeshPhysicalMaterial({ color: 0xb01e28, metalness: 0.9, roughness: 0.22, clearcoat: 1.0, clearcoatRoughness: 0.18 });
+    const gold = new T.MeshPhysicalMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.24, clearcoat: 0.6, clearcoatRoughness: 0.2 });
+    const dark = new T.MeshPhysicalMaterial({ color: 0x2b2f36, metalness: 0.9, roughness: 0.35, clearcoat: 0.4 });
+    const { RoundedBoxGeometry } = await import("three/addons/geometries/RoundedBoxGeometry.js");
+    const geo = new RoundedBoxGeometry(1, 1, 1, 3, 0.16);
     const defs = [];
     FINGERS.forEach(f => { for (let k = 0; k < f.length - 1; k++) defs.push({ a: f[k], b: f[k+1] }); });
     defs.push({ palm: true });
@@ -305,6 +401,20 @@ async function init3D() {
     tRepulsor.rotation.x = Math.PI / 2; tRepulsor.visible = false; tGroup.add(tRepulsor);
     tRing = new T.Mesh(new T.TorusGeometry(1, 0.10, 14, 44), gold);
     tRing.visible = false; tGroup.add(tRing);
+    // 前腕ガントレット（手首の先まで）
+    tForearm = new T.Mesh(new T.CylinderGeometry(0.86, 1.08, 1, 28), red);
+    tForearm.visible = false; tGroup.add(tForearm);
+    tForearmRing = new T.Mesh(new T.CylinderGeometry(1.10, 1.10, 0.16, 28), gold);
+    tForearmRing.visible = false; tGroup.add(tForearmRing);
+    tForearmPanel = new T.Mesh(new RoundedBoxGeometry(0.9, 1, 0.28, 3, 0.1), gold);
+    tForearmPanel.visible = false; tGroup.add(tForearmPanel);
+    // 関節スフィア（指の付け根を丸く）
+    const sph = new T.SphereGeometry(1, 20, 16);
+    tKnuckles = [5,9,13,17].map(() => { const m = new T.Mesh(sph, dark); m.visible = false; tGroup.add(m); return m; });
+    // リパルサービーム（掌からカメラ方向へ）
+    tBeam = new T.Mesh(new T.CylinderGeometry(0.35, 1.5, 1, 32, 1, true),
+      new T.MeshBasicMaterial({ color: 0x9fdcff, transparent: true, opacity: 0, blending: T.AdditiveBlending, side: T.DoubleSide, depthWrite: false }));
+    tBeam.rotation.x = Math.PI / 2; tBeam.visible = false; tGroup.add(tBeam);
     resize3D();
     use3D = true; tReady = true;
   } catch (e) { console.warn("3D unavailable, fallback to 2D", e); use3D = false; tReady = true; }
@@ -317,6 +427,14 @@ function resize3D() {
   tCamera.updateProjectionMatrix();
 }
 addEventListener("resize", resize3D);
+let orientTimer = null;
+addEventListener("resize", () => {
+  if (!running) return;
+  const land = innerWidth > innerHeight;
+  if (land === camLand) return;
+  clearTimeout(orientTimer);
+  orientTimer = setTimeout(() => { if (running && (innerWidth > innerHeight) !== camLand) startCamera().catch(()=>{}); }, 500);
+});
 function dispRect() {
   const st = $("stage"), sw = st.clientWidth, sh = st.clientHeight;
   const vw = video.videoWidth || 960, vh = video.videoHeight || 1280;
@@ -363,6 +481,36 @@ function updateArmor3D(lm, wlm) {
     if (pt.palm) pt.mesh.scale.set(size * 0.62, size * 0.52, size * 0.16);
     else pt.mesh.scale.set(Math.max(tg.len * 1.04, 6), size * 0.17, size * 0.13);
   });
+  // 前腕: 手首(0)から中指付け根(9)の逆方向へ伸ばす
+  {
+    const wrist = toStage(lm[0], wlm?.[0]?.z, R), mid = toStage(lm[9], wlm?.[9]?.z, R);
+    let vx = wrist.x - mid.x, vy = wrist.y - mid.y;
+    const vl = Math.hypot(vx, vy) || 1; vx /= vl; vy /= vl;
+    const L = size * 1.9;
+    const cx = wrist.x + vx * L * 0.48, cy = wrist.y + vy * L * 0.48, cz = wrist.z;
+    const angZ = Math.atan2(vy, vx) - Math.PI / 2;
+    const showF = armorMode === "on";
+    tForearm.visible = tForearmRing.visible = tForearmPanel.visible = showF;
+    if (showF) {
+      tForearm.position.set(cx, cy, cz - size * 0.02);
+      tForearm.rotation.set(0, 0, angZ);
+      tForearm.scale.set(size * 0.52, L, size * 0.46);
+      tForearmRing.position.set(wrist.x + vx * size * 0.18, wrist.y + vy * size * 0.18, cz);
+      tForearmRing.rotation.set(0, 0, angZ);
+      tForearmRing.scale.set(size * 0.56, size * 0.22, size * 0.50);
+      tForearmPanel.position.set(cx, cy, cz + size * 0.42);
+      tForearmPanel.rotation.set(0, 0, angZ);
+      tForearmPanel.scale.set(size * 0.55, L * 0.72, size * 0.16);
+    }
+    tKnuckles.forEach((m, k) => {
+      m.visible = armorMode === "on";
+      if (m.visible) {
+        const kp = toStage(lm[[5,9,13,17][k]], wlm?.[[5,9,13,17][k]]?.z, R);
+        m.position.set(kp.x, kp.y, kp.z + size * 0.05);
+        m.scale.setScalar(size * 0.11);
+      }
+    });
+  }
   const c = palmCenter(lm);
   const wz = wlm ? [0,5,9,13,17].reduce((a, i) => a + wlm[i].z, 0) / 5 : null;
   const cp = toStage(c, wz, R);
@@ -375,11 +523,21 @@ function updateArmor3D(lm, wlm) {
     tRing.position.copy(tRepulsor.position);
     tRing.scale.setScalar(size * 0.24 * pulse);
     tLight.position.set(cp.x, cp.y, cp.z + 160);
-    tLight.intensity = armorMode === "on" ? 2.4 : 0.7;
-  } else tLight.intensity = 0;
+    const blasting = performance.now() < blastUntil;
+    tLight.intensity = blasting ? 9 : armorMode === "on" ? 2.4 : 0.7;
+    if (blasting) tRepulsor.scale.set(size * 0.34, size * 0.07, size * 0.34);
+    // ビーム本体
+    tBeam.visible = blasting;
+    if (blasting) {
+      const bl = size * 5.5;
+      tBeam.position.set(cp.x, cp.y, cp.z + bl / 2 + size * 0.1);
+      tBeam.scale.set(size * 0.9, bl, size * 0.9);
+      tBeam.material.opacity = 0.5 + Math.random() * 0.15;
+    } else tBeam.material.opacity = 0;
+  } else { tLight.intensity = 0; if (tBeam) tBeam.visible = false; }
   if ((assembling || releasing) && done) {
     armorMode = assembling ? "on" : "off";
-    if (armorMode === "off") { tParts.forEach(pt => pt.mesh.visible = false); tRepulsor.visible = tRing.visible = false; }
+    if (armorMode === "off") { tParts.forEach(pt => pt.mesh.visible = false); tRepulsor.visible = tRing.visible = false; if (tForearm) tForearm.visible = tForearmRing.visible = tForearmPanel.visible = false; tKnuckles.forEach(m=>m.visible=false); }
   }
   tRenderer.render(tScene, tCamera);
 }
@@ -407,7 +565,7 @@ function loop() {
     lm.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 160, 0, 7); ctx.fill(); });
 
     const g = classify(lm);
-    if (i === 0) { firstLm = lm; firstWlm = res.worldLandmarks?.[i] ?? null; trackGuupa(g.count); }
+    if (i === 0) { firstLm = lm; firstWlm = res.worldLandmarks?.[i] ?? null; trackGuupa(g.count); trackRepulsor(g); }
     if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
@@ -436,6 +594,7 @@ function loop() {
   } else if (tReady && use3D && armorMode !== "off") {
     tGroup.visible = false; tLight.intensity = 0; tRenderer.render(tScene, tCamera);
   }
+  if (firstLm) drawBlast2D(firstLm);
 
   const gEl = $("gesture"), cEl = $("count");
   if (gestures.length) {
@@ -444,6 +603,14 @@ function loop() {
     cEl.innerHTML = `指の合計: <b>${counts.reduce((a, b) => a + b, 0)}</b>`;
   } else { gEl.hidden = cEl.hidden = true; }
   if (!waveDone) openSince = 0;
+  const chEl = $("charge");
+  {
+    const now2 = performance.now();
+    if (now2 < blastUntil) { chEl.hidden = false; chEl.innerHTML = `💥 発射中… <b>${((blastUntil-now2)/1000).toFixed(1)}</b>秒`; }
+    else if (fistArmed) { chEl.hidden = false; chEl.textContent = "⚡ 充電完了！パーで発射"; }
+    else if (fistSince) { chEl.hidden = false; chEl.innerHTML = `⚡ 充電中 <b>${Math.min(5,(now2-fistSince)/1000).toFixed(1)}</b> / 5.0秒（グーのまま）`; }
+    else chEl.hidden = true;
+  }
   const gpEl = $("gp");
   if (gp.cycles > 0 && armorMode === "off") { gpEl.hidden = false; gpEl.textContent = `グーパー ${gp.cycles}/3`; }
   else if (gp.cycles > 0 && armorMode === "on") { gpEl.hidden = false; gpEl.textContent = `解除まで グーパー ${gp.cycles}/3`; }
@@ -463,13 +630,13 @@ $("start").onclick = async () => {
   try {
     if (!landmarker) await loadModel();
     await startCamera();
-    $("msg").hidden = true;
+    $("msg").hidden = true; $("msg").style.display = "none";
     ["flip", "drawToggle", "clear"].forEach(id => $(id).disabled = false);
     btn.textContent = "実行中"; running = true; loop();
   } catch (e) {
     console.error(e);
     btn.disabled = false; btn.textContent = "再試行";
-    $("msg").hidden = false;
+    $("msg").hidden = false; $("msg").style.display = "flex";
     $("msg").textContent = "開始できませんでした: " + (e.name === "NotAllowedError" ? "カメラの許可が必要です。" : e.message);
   }
 };
