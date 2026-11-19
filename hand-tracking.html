@@ -37,6 +37,7 @@
     <div class="badge" id="gesture" hidden></div>
     <div class="badge" id="count" hidden></div>
     <div class="badge" id="wave" hidden></div>
+    <div class="badge" id="gp" hidden></div>
   </div>
   <div id="toast" hidden></div>
   <div id="msg">「カメラ開始」を押してください。<br>映像は端末内で処理され、送信されません。</div>
@@ -51,7 +52,7 @@
 </div>
 
 <div class="help">
-  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ <span id="fps">FPS: -</span>
+  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3でアーマー装着/解除 ｜ <span id="fps">FPS: -</span>
 </div>
 </div>
 
@@ -162,6 +163,105 @@ function trackWave(x) {
   }
 }
 
+// --- グーパー×3でアーマー装着（パーツが手に集まってくる演出） ---
+let armorMode = "off"; // off | assembling | on | releasing
+let armorParts = [], armorT0 = 0;
+let gp = { last: "", cycles: 0, lastT: 0, cool: 0 };
+const FINGERS = [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16],[17,18,19,20]];
+function palmCenter(lm) {
+  const ids = [0,5,9,13,17]; let x=0, y=0;
+  ids.forEach(i => { x += lm[i].x; y += lm[i].y; });
+  return { x: x/ids.length, y: y/ids.length };
+}
+function trackGuupa(count) {
+  const now = performance.now();
+  if (now < gp.cool || armorMode === "assembling" || armorMode === "releasing") return;
+  if (gp.cycles && now - gp.lastT > 4000) { gp.cycles = 0; gp.last = ""; }
+  const g = count === 0 ? "fist" : count === 5 ? "open" : "";
+  if (!g || g === gp.last) return;
+  if (g === "open" && gp.last === "fist") {
+    gp.cycles++; gp.lastT = now;
+    if (gp.cycles >= 3) {
+      gp.cycles = 0; gp.last = ""; gp.cool = now + 800;
+      if (armorMode === "off") startArmor(true); else if (armorMode === "on") startArmor(false);
+      return;
+    }
+  }
+  gp.last = g; gp.lastT = now;
+}
+function startArmor(on) {
+  armorT0 = performance.now();
+  armorParts = [];
+  const defs = [];
+  FINGERS.forEach(f => { for (let k = 0; k < f.length - 1; k++) defs.push({ a: f[k], b: f[k+1] }); });
+  defs.push({ palm: true });
+  defs.forEach((d, i) => {
+    const ang = Math.random() * Math.PI * 2, R = Math.max(canvas.width, canvas.height) * (0.7 + Math.random() * 0.5);
+    armorParts.push({ ...d, sx: Math.cos(ang) * R, sy: Math.sin(ang) * R, delay: i * 55, col: i % 3 === 2 ? "#e8b13a" : "#c0272d" });
+  });
+  armorMode = on ? "assembling" : "releasing";
+  showToast(on ? "🦾 アーマー装着！" : "アーマー解除");
+}
+function partTarget(d, lm, W, H) {
+  if (d.palm) { const c = palmCenter(lm); return { x: c.x * W, y: c.y * H, ang: 0 }; }
+  const A = lm[d.a], B = lm[d.b];
+  return { x: (A.x + B.x) / 2 * W, y: (A.y + B.y) / 2 * H, ang: Math.atan2((B.y - A.y) * H, (B.x - A.x) * W) };
+}
+function drawArmor(lm) {
+  const W = canvas.width, H = canvas.height, now = performance.now();
+  const size = d(lm[0], lm[9]) * W;
+  if (armorMode === "assembling" || armorMode === "releasing") {
+    let done = true;
+    armorParts.forEach(pt => {
+      const tg = partTarget(pt, lm, W, H);
+      const dur = 650;
+      let t = (now - armorT0 - pt.delay) / dur;
+      if (t < 1) done = false;
+      t = Math.max(0, Math.min(1, t));
+      const e = 1 - Math.pow(1 - t, 3);
+      const from = armorMode === "assembling" ? { x: pt.sx + W / 2, y: pt.sy + H / 2 } : tg;
+      const to = armorMode === "assembling" ? tg : { x: pt.sx + W / 2, y: pt.sy + H / 2 };
+      const x = from.x + (to.x - from.x) * e, y = from.y + (to.y - from.y) * e;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(tg.ang);
+      ctx.fillStyle = pt.col; ctx.strokeStyle = "#e8b13a"; ctx.lineWidth = 2;
+      const w = pt.palm ? size * 0.5 : size * 0.34, h = pt.palm ? size * 0.42 : size * 0.15;
+      ctx.beginPath(); ctx.roundRect(-w / 2, -h / 2, w, h, 4); ctx.fill(); ctx.stroke();
+      ctx.restore();
+    });
+    if (done) armorMode = armorMode === "assembling" ? "on" : "off";
+    return;
+  }
+  if (armorMode !== "on") return;
+  // 手の甲プレート
+  ctx.save();
+  ctx.beginPath();
+  [5,9,13,17,0].forEach((id, k) => { const p = lm[id]; k ? ctx.lineTo(p.x * W, p.y * H) : ctx.moveTo(p.x * W, p.y * H); });
+  ctx.closePath();
+  ctx.fillStyle = "rgba(176,32,38,.80)"; ctx.fill();
+  ctx.strokeStyle = "#e8b13a"; ctx.lineWidth = Math.max(2, W / 220); ctx.stroke();
+  // 指アーマー
+  FINGERS.forEach(f => {
+    ctx.strokeStyle = "#c0272d"; ctx.lineWidth = W / 52; ctx.lineCap = "round";
+    ctx.beginPath();
+    f.forEach((id, k) => { const p = lm[id]; k ? ctx.lineTo(p.x * W, p.y * H) : ctx.moveTo(p.x * W, p.y * H); });
+    ctx.stroke();
+    ctx.fillStyle = "#e8b13a";
+    f.forEach(id => { const p = lm[id]; ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 130, 0, 7); ctx.fill(); });
+  });
+  // 掌のリパルサー
+  const c = palmCenter(lm), pulse = 1 + Math.sin(now / 180) * 0.12;
+  const r = size * 0.20 * pulse;
+  ctx.beginPath(); ctx.arc(c.x * W, c.y * H, r * 1.35, 0, 7);
+  ctx.strokeStyle = "#e8b13a"; ctx.lineWidth = Math.max(2, W / 160); ctx.stroke();
+  ctx.shadowColor = "#7dd3fc"; ctx.shadowBlur = 26;
+  ctx.beginPath(); ctx.arc(c.x * W, c.y * H, r, 0, 7);
+  ctx.fillStyle = "#e0f2fe"; ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.beginPath(); ctx.arc(c.x * W, c.y * H, r * 0.45, 0, 7);
+  ctx.fillStyle = "#38bdf8"; ctx.fill();
+  ctx.restore();
+}
+
 // --- メインループ ---
 function loop() {
   if (!running) return;
@@ -173,7 +273,7 @@ function loop() {
   ctx.clearRect(0, 0, W, H);
 
   const gestures = [], counts = [], seen = new Set();
-  let waveDone = false;
+  let waveDone = false, firstLm = null;
   res.landmarks.forEach((lm, i) => {
     const col = COLORS[i % 2];
     ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, W / 200);
@@ -184,6 +284,7 @@ function loop() {
     lm.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 160, 0, 7); ctx.fill(); });
 
     const g = classify(lm);
+    if (i === 0) { firstLm = lm; trackGuupa(g.count); }
     if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
@@ -206,6 +307,7 @@ function loop() {
     }
   });
   Object.keys(lastPt).forEach(k => { if (!seen.has(+k)) lastPt[k] = null; });
+  if (firstLm && armorMode !== "off") drawArmor(firstLm);
 
   const gEl = $("gesture"), cEl = $("count");
   if (gestures.length) {
@@ -214,6 +316,10 @@ function loop() {
     cEl.innerHTML = `指の合計: <b>${counts.reduce((a, b) => a + b, 0)}</b>`;
   } else { gEl.hidden = cEl.hidden = true; }
   if (!waveDone) openSince = 0;
+  const gpEl = $("gp");
+  if (gp.cycles > 0 && armorMode === "off") { gpEl.hidden = false; gpEl.textContent = `グーパー ${gp.cycles}/3`; }
+  else if (gp.cycles > 0 && armorMode === "on") { gpEl.hidden = false; gpEl.textContent = `解除まで グーパー ${gp.cycles}/3`; }
+  else gpEl.hidden = true;
   const wEl = $("wave");
   if (drawMode && wave.n > 0) { wEl.hidden = false; wEl.textContent = `全消去まで 振り ${wave.n}/3`; }
   else wEl.hidden = true;
