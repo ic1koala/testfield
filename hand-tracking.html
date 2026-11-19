@@ -10,7 +10,8 @@
   body { background: #000; color: var(--text); font-family: -apple-system, "Hiragino Sans", sans-serif; height: 100dvh; overflow: hidden; }
   h1 { position: absolute; top: calc(8px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; font-size: 14px; font-weight: 600; color: rgba(255,255,255,.85); text-shadow: 0 1px 4px rgba(0,0,0,.8); z-index: 5; pointer-events: none; }
   #stage { position: fixed; inset: 0; background: #000; overflow: hidden; }
-  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; transform: scaleX(-1); }
+  #bg { object-fit: cover; filter: blur(28px) brightness(.55); transform: scaleX(-1) scale(1.15); }
   #hud { position: absolute; left: 0; right: 0; top: 36px; padding: 10px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
   .badge { align-self: flex-start; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); border-radius: 12px; padding: 6px 12px; font-size: 15px; font-weight: 600; }
   .badge b { color: var(--accent); font-size: 22px; }
@@ -28,6 +29,7 @@
 <body>
 <div id="stage">
   <h1>✋ ハンドジェスチャートラッキング</h1>
+  <video id="bg" playsinline muted></video>
   <video id="video" playsinline muted></video>
   <canvas id="canvas"></canvas>
   <canvas id="draw"></canvas>
@@ -57,7 +59,7 @@
 import { HandLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 const $ = id => document.getElementById(id);
-const video = $("video"), canvas = $("canvas"), ctx = canvas.getContext("2d");
+const video = $("video"), bg = $("bg"), canvas = $("canvas"), ctx = canvas.getContext("2d");
 const drawCv = $("draw"), dctx = drawCv.getContext("2d");
 let landmarker = null, stream = null, facing = "user", running = false;
 let drawMode = false, lastPt = {}, lastTs = -1;
@@ -85,12 +87,21 @@ async function startCamera() {
     video: { facingMode: facing, width: { ideal: 960 }, height: { ideal: 1280 } }, audio: false
   });
   video.srcObject = stream;
+  bg.srcObject = stream;
   await video.play();
+  bg.play().catch(() => {});
+  // 対応端末では一番広角（最小ズーム）に固定
+  try {
+    const track = stream.getVideoTracks()[0];
+    const cap = track.getCapabilities?.() || {};
+    if (cap.zoom) await track.applyConstraints({ advanced: [{ zoom: cap.zoom.min }] });
+  } catch (e) { /* ズーム非対応端末では何もしない */ }
   canvas.width = drawCv.width = video.videoWidth;
   canvas.height = drawCv.height = video.videoHeight;
   // 背面カメラは鏡像にしない
   const m = facing === "user" ? "scaleX(-1)" : "none";
   video.style.transform = canvas.style.transform = drawCv.style.transform = m;
+  bg.style.transform = facing === "user" ? "scaleX(-1) scale(1.15)" : "scale(1.15)";
 }
 
 // --- ジェスチャー判定 ---
@@ -123,6 +134,8 @@ function classify(lm) {
 
 // --- 手を振って全消去（お絵描きモード時、パーで左右に3回振る） ---
 let wave = { n: 0, dir: 0, ext: null, lastT: 0, cool: 0 };
+let lastPinchT = 0, openSince = 0;
+function resetWave() { wave.n = 0; wave.dir = 0; wave.ext = null; openSince = 0; }
 let toastTimer = null;
 function showToast(t) {
   const el = $("toast"); el.textContent = t; el.hidden = false;
@@ -131,6 +144,9 @@ function showToast(t) {
 function trackWave(x) {
   const now = performance.now();
   if (now < wave.cool) return;
+  if (now - lastPinchT < 1500) { resetWave(); return; } // 描いた直後は数えない
+  if (!openSince) { openSince = now; return; }
+  if (now - openSince < 400) return; // 手を開いて0.4秒経ってから数え始める
   if (wave.ext === null) { wave.ext = x; wave.dir = 0; return; }
   if (wave.n && now - wave.lastT > 2500) { wave.n = 0; wave.dir = 0; }
   const dx = x - wave.ext;
@@ -140,7 +156,7 @@ function trackWave(x) {
     wave.n++; wave.lastT = now; wave.dir = -wave.dir; wave.ext = x;
     if (wave.n >= 3) {
       dctx.clearRect(0, 0, drawCv.width, drawCv.height);
-      wave = { n: 0, dir: 0, ext: null, lastT: 0, cool: now + 1500 };
+      resetWave(); wave.cool = now + 1500;
       showToast("🧹 描いたものを消しました");
     }
   }
@@ -168,6 +184,7 @@ function loop() {
     lm.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 160, 0, 7); ctx.fill(); });
 
     const g = classify(lm);
+    if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
     // カメラは鏡像なので左右を入れ替えて表示
@@ -196,6 +213,7 @@ function loop() {
     gEl.innerHTML = gestures.join("<br>");
     cEl.innerHTML = `指の合計: <b>${counts.reduce((a, b) => a + b, 0)}</b>`;
   } else { gEl.hidden = cEl.hidden = true; }
+  if (!waveDone) openSince = 0;
   const wEl = $("wave");
   if (drawMode && wave.n > 0) { wEl.hidden = false; wEl.textContent = `全消去まで 振り ${wave.n}/3`; }
   else wEl.hidden = true;
@@ -222,7 +240,7 @@ $("start").onclick = async () => {
   }
 };
 $("flip").onclick = async () => { facing = facing === "user" ? "environment" : "user"; await startCamera(); };
-$("drawToggle").onclick = e => { wave = { n: 0, dir: 0, ext: null, lastT: 0, cool: 0 }; drawMode = !drawMode; e.target.textContent = `お絵描き: ${drawMode ? "ON" : "OFF"}`; e.target.classList.toggle("on", drawMode); lastPt = {}; };
+$("drawToggle").onclick = e => { resetWave(); wave.cool = 0; drawMode = !drawMode; e.target.textContent = `お絵描き: ${drawMode ? "ON" : "OFF"}`; e.target.classList.toggle("on", drawMode); lastPt = {}; };
 $("clear").onclick = () => dctx.clearRect(0, 0, drawCv.width, drawCv.height);
 </script>
 </body>
