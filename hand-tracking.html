@@ -25,6 +25,12 @@
   #dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); background: rgba(15,18,32,.85); backdrop-filter: blur(8px); }
   #toast { position: absolute; top: 16%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.65); backdrop-filter: blur(6px); border-radius: 14px; padding: 10px 18px; font-size: 17px; font-weight: 700; z-index: 7; pointer-events: none; }
 </style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
 </head>
 <body>
 <div id="stage">
@@ -32,6 +38,7 @@
   <video id="bg" playsinline muted></video>
   <video id="video" playsinline muted></video>
   <canvas id="canvas"></canvas>
+  <canvas id="three"></canvas>
   <canvas id="draw"></canvas>
   <div id="hud">
     <div class="badge" id="gesture" hidden></div>
@@ -52,7 +59,7 @@
 </div>
 
 <div class="help">
-  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3でアーマー装着/解除 ｜ <span id="fps">FPS: -</span>
+  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除 ｜ <span id="fps">FPS: -</span>
 </div>
 </div>
 
@@ -102,6 +109,7 @@ async function startCamera() {
   // 背面カメラは鏡像にしない
   const m = facing === "user" ? "scaleX(-1)" : "none";
   video.style.transform = canvas.style.transform = drawCv.style.transform = m;
+  const tc = $("three"); if (tc) tc.style.transform = m;
   bg.style.transform = facing === "user" ? "scaleX(-1) scale(1.15)" : "scale(1.15)";
 }
 
@@ -262,6 +270,121 @@ function drawArmor(lm) {
   ctx.restore();
 }
 
+// --- 3Dアーマー (Three.js / 金属質感のパーツ) ---
+let T = null, tRenderer, tScene, tCamera, tGroup, tParts = [], tRepulsor, tRing, tLight;
+let use3D = false, tReady = false;
+async function init3D() {
+  try {
+    T = await import("three");
+    const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
+    tRenderer = new T.WebGLRenderer({ canvas: $("three"), alpha: true, antialias: true });
+    tRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    tScene = new T.Scene();
+    const pmrem = new T.PMREMGenerator(tRenderer);
+    tScene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    tCamera = new T.OrthographicCamera(-1, 1, 1, -1, -2000, 2000);
+    tCamera.position.z = 600;
+    const key = new T.DirectionalLight(0xffffff, 1.4); key.position.set(200, 300, 500); tScene.add(key);
+    tLight = new T.PointLight(0x66ccff, 0, 1200); tScene.add(tLight);
+    tGroup = new T.Group(); tScene.add(tGroup);
+    const red = new T.MeshPhysicalMaterial({ color: 0xb01e28, metalness: 0.85, roughness: 0.3, clearcoat: 0.7, clearcoatRoughness: 0.25 });
+    const gold = new T.MeshPhysicalMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.27, clearcoat: 0.4 });
+    const geo = new T.BoxGeometry(1, 1, 1);
+    const defs = [];
+    FINGERS.forEach(f => { for (let k = 0; k < f.length - 1; k++) defs.push({ a: f[k], b: f[k+1] }); });
+    defs.push({ palm: true });
+    tParts = defs.map((d, i) => {
+      const mesh = new T.Mesh(geo, i % 3 === 2 ? gold : red);
+      mesh.visible = false;
+      const ang = Math.random() * Math.PI * 2, R = 900 + Math.random() * 500;
+      tGroup.add(mesh);
+      return { ...d, mesh, delay: i * 55, sx: Math.cos(ang) * R, sy: Math.sin(ang) * R, sz: 250 + Math.random() * 350, rx: Math.random() * 6, ry: Math.random() * 6 };
+    });
+    tRepulsor = new T.Mesh(new T.CylinderGeometry(1, 1, 1, 40),
+      new T.MeshStandardMaterial({ color: 0xbfe9ff, emissive: 0x9fd8ff, emissiveIntensity: 2.2, metalness: 0.1, roughness: 0.2 }));
+    tRepulsor.rotation.x = Math.PI / 2; tRepulsor.visible = false; tGroup.add(tRepulsor);
+    tRing = new T.Mesh(new T.TorusGeometry(1, 0.10, 14, 44), gold);
+    tRing.visible = false; tGroup.add(tRing);
+    resize3D();
+    use3D = true; tReady = true;
+  } catch (e) { console.warn("3D unavailable, fallback to 2D", e); use3D = false; tReady = true; }
+}
+function resize3D() {
+  if (!tRenderer) return;
+  const st = $("stage"), W = st.clientWidth, H = st.clientHeight;
+  tRenderer.setSize(W, H, false);
+  tCamera.left = -W / 2; tCamera.right = W / 2; tCamera.top = H / 2; tCamera.bottom = -H / 2;
+  tCamera.updateProjectionMatrix();
+}
+addEventListener("resize", resize3D);
+function dispRect() {
+  const st = $("stage"), sw = st.clientWidth, sh = st.clientHeight;
+  const vw = video.videoWidth || 960, vh = video.videoHeight || 1280;
+  const sc = Math.min(sw / vw, sh / vh);
+  return { dw: vw * sc, dh: vh * sc, ox: (sw - vw * sc) / 2, oy: (sh - vh * sc) / 2, sw, sh };
+}
+function toStage(lmPt, wz, R) {
+  return { x: R.ox + lmPt.x * R.dw - R.sw / 2, y: -(R.oy + lmPt.y * R.dh - R.sh / 2), z: wz ? -wz * R.dw : 0 };
+}
+function target3D(d, lm, wlm, R) {
+  if (d.palm) {
+    const c = palmCenter(lm);
+    const wz = wlm ? [0,5,9,13,17].reduce((a, i) => a + wlm[i].z, 0) / 5 : null;
+    const p = toStage(c, wz, R);
+    const a5 = toStage(lm[5], null, R), a17 = toStage(lm[17], null, R);
+    return { ...p, ang: Math.atan2(a17.y - a5.y, a17.x - a5.x), len: 1, dz: 0 };
+  }
+  const A = toStage(lm[d.a], wlm?.[d.a]?.z, R), B = toStage(lm[d.b], wlm?.[d.b]?.z, R);
+  return { x: (A.x + B.x) / 2, y: (A.y + B.y) / 2, z: (A.z + B.z) / 2, ang: Math.atan2(B.y - A.y, B.x - A.x), len: Math.hypot(B.x - A.x, B.y - A.y), dz: B.z - A.z };
+}
+function updateArmor3D(lm, wlm) {
+  tGroup.visible = true;
+  const R = dispRect();
+  const size = d(lm[0], lm[9]) * R.dw;
+  const now = performance.now();
+  const assembling = armorMode === "assembling", releasing = armorMode === "releasing";
+  let done = true;
+  tParts.forEach(pt => {
+    const tg = target3D(pt, lm, wlm, R);
+    pt.mesh.visible = true;
+    if (assembling || releasing) {
+      let t = (now - armorT0 - pt.delay) / 650;
+      if (t < 1) done = false;
+      t = Math.max(0, Math.min(1, t));
+      const e = 1 - Math.pow(1 - t, 3);
+      const start = { x: pt.sx, y: pt.sy, z: pt.sz };
+      const from = assembling ? start : tg, to = assembling ? tg : start;
+      pt.mesh.position.set(from.x + (to.x - from.x) * e, from.y + (to.y - from.y) * e, from.z + (to.z - from.z) * e);
+      pt.mesh.rotation.set(pt.rx * (1 - e), pt.ry * (1 - e), tg.ang * e);
+    } else {
+      pt.mesh.position.set(tg.x, tg.y, tg.z);
+      pt.mesh.rotation.set(0, Math.atan2(tg.dz || 0, tg.len || 1) * 0.8, tg.ang);
+    }
+    if (pt.palm) pt.mesh.scale.set(size * 0.62, size * 0.52, size * 0.16);
+    else pt.mesh.scale.set(Math.max(tg.len * 1.04, 6), size * 0.17, size * 0.13);
+  });
+  const c = palmCenter(lm);
+  const wz = wlm ? [0,5,9,13,17].reduce((a, i) => a + wlm[i].z, 0) / 5 : null;
+  const cp = toStage(c, wz, R);
+  tRepulsor.visible = tRing.visible = armorMode === "on" || assembling;
+  if (tRepulsor.visible) {
+    const pulse = 1 + Math.sin(now / 180) * 0.10;
+    const rr = size * 0.17 * pulse;
+    tRepulsor.position.set(cp.x, cp.y, cp.z + size * 0.10);
+    tRepulsor.scale.set(rr, size * 0.05, rr);
+    tRing.position.copy(tRepulsor.position);
+    tRing.scale.setScalar(size * 0.24 * pulse);
+    tLight.position.set(cp.x, cp.y, cp.z + 160);
+    tLight.intensity = armorMode === "on" ? 2.4 : 0.7;
+  } else tLight.intensity = 0;
+  if ((assembling || releasing) && done) {
+    armorMode = assembling ? "on" : "off";
+    if (armorMode === "off") { tParts.forEach(pt => pt.mesh.visible = false); tRepulsor.visible = tRing.visible = false; }
+  }
+  tRenderer.render(tScene, tCamera);
+}
+init3D();
+
 // --- メインループ ---
 function loop() {
   if (!running) return;
@@ -273,7 +396,7 @@ function loop() {
   ctx.clearRect(0, 0, W, H);
 
   const gestures = [], counts = [], seen = new Set();
-  let waveDone = false, firstLm = null;
+  let waveDone = false, firstLm = null, firstWlm = null;
   res.landmarks.forEach((lm, i) => {
     const col = COLORS[i % 2];
     ctx.strokeStyle = col; ctx.lineWidth = Math.max(2, W / 200);
@@ -284,7 +407,7 @@ function loop() {
     lm.forEach(p => { ctx.beginPath(); ctx.arc(p.x * W, p.y * H, W / 160, 0, 7); ctx.fill(); });
 
     const g = classify(lm);
-    if (i === 0) { firstLm = lm; trackGuupa(g.count); }
+    if (i === 0) { firstLm = lm; firstWlm = res.worldLandmarks?.[i] ?? null; trackGuupa(g.count); }
     if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
@@ -307,7 +430,12 @@ function loop() {
     }
   });
   Object.keys(lastPt).forEach(k => { if (!seen.has(+k)) lastPt[k] = null; });
-  if (firstLm && armorMode !== "off") drawArmor(firstLm);
+  if (firstLm && armorMode !== "off") {
+    if (tReady && use3D) updateArmor3D(firstLm, firstWlm);
+    else drawArmor(firstLm);
+  } else if (tReady && use3D && armorMode !== "off") {
+    tGroup.visible = false; tLight.intensity = 0; tRenderer.render(tScene, tCamera);
+  }
 
   const gEl = $("gesture"), cEl = $("count");
   if (gestures.length) {
