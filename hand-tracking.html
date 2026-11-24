@@ -458,7 +458,7 @@ function drawForearm2D(lm, W, H, size) {
   let vx = wrist.x - mid.x, vy = wrist.y - mid.y;
   const vl = Math.hypot(vx, vy) || 1; vx/=vl; vy/=vl;
   const px = -vy, py = vx;
-  const len = size * 1.9, w1 = size * 0.34, w2 = size * 0.46;
+  const len = size * 1.9, w1 = size * 0.306, w2 = size * 0.414;
   const x0 = wrist.x*W, y0 = wrist.y*H;
   const x1 = x0 + vx*len, y1 = y0 + vy*len;
   ctx.save();
@@ -666,13 +666,13 @@ function updateArmor3D(lm, wlm, set, blastUntil) {
     if (showF) {
       set.forearm.position.set(cx, cy, cz - size * 0.02);
       set.forearm.rotation.set(0, 0, angZ);
-      set.forearm.scale.set(size * 0.52, L, size * 0.46);
+      set.forearm.scale.set(size * 0.468, L, size * 0.414);
       set.forearmRing.position.set(wrist.x + vx * size * 0.18, wrist.y + vy * size * 0.18, cz);
       set.forearmRing.rotation.set(0, 0, angZ);
-      set.forearmRing.scale.set(size * 0.56, size * 0.22, size * 0.50);
+      set.forearmRing.scale.set(size * 0.504, size * 0.22, size * 0.45);
       set.forearmPanel.position.set(cx, cy, cz + size * 0.42);
       set.forearmPanel.rotation.set(0, 0, angZ);
-      set.forearmPanel.scale.set(size * 0.55, L * 0.72, size * 0.16);
+      set.forearmPanel.scale.set(size * 0.495, L * 0.72, size * 0.16);
     }
   }
   const c = palmCenter(lm);
