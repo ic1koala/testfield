@@ -76,7 +76,7 @@
 </div>
 
 <div class="help">
-  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除（両手対応） ｜ グーを5秒キープ→パーでリパルサー3秒発射（両手それぞれ） ｜ パーをキープで魔法陣 ｜ 人差し指と小指だけ立てると糸発射 ｜ 横向きで横画面全面 ｜ <span id="fps">FPS: -</span>
+  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除（両手対応） ｜ グーを5秒キープ→パーでリパルサー3秒発射（両手それぞれ） ｜ 両手パーを5秒キープで魔法陣 ｜ 人差し指と小指だけ立てると糸発射 ｜ 横向きで横画面全面 ｜ <span id="fps">FPS: -</span>
 </div>
 </div>
 
@@ -253,35 +253,47 @@ function drawBlast2D(lm, idx = 0) {
   ctx.restore();
 }
 
-// --- 魔法陣（パーをキープ）＆ ウェブシューター（人差し指+小指だけ立てる） ---
-let palmOpenSince = [0, 0];
+// --- 魔法陣（両手パーを5秒キープで徐々に出現）＆ ウェブシューター（人差し指+小指だけ立てる） ---
+let bothOpenSince = 0;
+const MAGIC_HOLD = 5000, MAGIC_RAMP = 1600;
 let webs = [];
 let webCool = [0, 0];
-function trackMagicWeb(g, lm, idx) {
+function trackWeb(lm, idx) {
   const now = performance.now();
-  if (g.count === 5) { if (!palmOpenSince[idx]) palmOpenSince[idx] = now; }
-  else palmOpenSince[idx] = 0;
   const f = fingerStates(lm);
   const isWeb = f.index && f.pinky && !f.middle && !f.ring;
   if (isWeb && now > webCool[idx] && now >= rep[idx].blastUntil) {
     let dx = lm[8].x - lm[5].x, dy = lm[8].y - lm[5].y;
     const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-    webs.push({ x: lm[0].x, y: lm[0].y, dx, dy, t0: now, until: now + 950 });
-    webCool[idx] = now + 1150;
+    const baseAng = Math.atan2(dy, dx);
+    const strands = [];
+    const N = 9;
+    for (let i = 0; i < N; i++) {
+      const t = N === 1 ? 0 : (i / (N - 1) - 0.5);
+      strands.push({
+        off: t * 0.62 + (Math.random() - 0.5) * 0.03,
+        lenF: 0.72 + (1 - Math.abs(t)) * 0.28 - Math.random() * 0.06,
+        sagF: 0.6 + Math.random() * 0.9
+      });
+    }
+    webs.push({ x: lm[0].x, y: lm[0].y, baseAng, strands, t0: now, until: now + 1100 });
+    webCool[idx] = now + 1250;
   }
 }
 function drawMagic(lm, idx) {
-  const since = palmOpenSince[idx];
-  if (!since) return;
+  if (!bothOpenSince) return;
   const now = performance.now();
-  if (now - since < 350 || now < rep[idx].blastUntil) return;
-  const k = Math.min(1, (now - since - 350) / 250);
+  const held = now - bothOpenSince;
+  if (held < MAGIC_HOLD || now < rep[idx].blastUntil) return;
+  const raw = Math.min(1, (held - MAGIC_HOLD) / MAGIC_RAMP);
+  const k = 1 - Math.pow(1 - raw, 2);
   const W = canvas.width, H = canvas.height;
   const c = palmCenter(lm), x = c.x * W, y = c.y * H;
   const size = d(lm[0], lm[9]) * W;
-  const R = size * 1.15 * k;
+  const R = size * 1.15 * (0.5 + 0.5 * k);
   const t = now / 1000;
   ctx.save();
+  ctx.globalAlpha = k;
   ctx.translate(x, y);
   ctx.shadowColor = "rgba(255,140,40,.9)"; ctx.shadowBlur = 18;
   ctx.strokeStyle = "rgba(255,154,60,.95)"; ctx.fillStyle = "rgba(255,140,40,.07)";
@@ -330,38 +342,65 @@ function drawWebs() {
   webs = webs.filter(w => now < w.until);
   if (!webs.length) return;
   const W = canvas.width, H = canvas.height;
-  const maxL = Math.hypot(W, H) * 1.1;
+  const maxL = Math.hypot(W, H) * 1.05;
+  const qpt = (p0, pc, p1, t) => {
+    const u = 1 - t;
+    return { x: u * u * p0.x + 2 * u * t * pc.x + t * t * p1.x, y: u * u * p0.y + 2 * u * t * pc.y + t * t * p1.y };
+  };
   ctx.save();
   ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.lineCap = "round";
-  ctx.shadowColor = "rgba(200,220,255,.8)"; ctx.shadowBlur = 6;
+  ctx.shadowColor = "rgba(200,220,255,.8)"; ctx.shadowBlur = 5;
   for (const w of webs) {
     const age = now - w.t0;
-    const p = Math.min(1, age / 160);
+    const p = Math.min(1, age / 170);
     const ease = 1 - Math.pow(1 - p, 3);
-    const len = maxL * ease;
+    const fade = Math.max(0, Math.min(1, (w.until - now) / 350));
     const x0 = w.x * W, y0 = w.y * H;
-    const x1 = x0 + w.dx * len, y1 = y0 + w.dy * len;
-    const sag = Math.min(26, age / 18) * p;
-    const mx = (x0 + x1) / 2 - w.dy * 0, my = (y0 + y1) / 2 + sag;
-    ctx.lineWidth = Math.max(2, W / 160);
-    for (const off of [-0.35, 0, 0.35]) {
+    const origin = { x: x0, y: y0 };
+    const sagBase = Math.min(30, age / 16);
+    const curves = w.strands.map(st => {
+      const ang = w.baseAng + st.off;
+      const len = maxL * ease * st.lenF;
+      const end = { x: x0 + Math.cos(ang) * len, y: y0 + Math.sin(ang) * len };
+      const ctrl = { x: (x0 + end.x) / 2, y: (y0 + end.y) / 2 + sagBase * st.sagF * p };
+      return { end, ctrl };
+    });
+    // 放射状の糸（扇状に広がる）
+    ctx.lineWidth = Math.max(1.8, W / 190);
+    curves.forEach((cv, i) => {
+      const center = Math.abs(i - (curves.length - 1) / 2) < 0.6;
+      ctx.globalAlpha = (center ? 0.95 : 0.6) * fade;
       ctx.beginPath();
-      ctx.moveTo(x0 + off * 8, y0 + off * 5);
-      ctx.quadraticCurveTo(mx + off * 14, my, x1 + off * 10, y1 + off * 6);
-      ctx.globalAlpha = off === 0 ? 0.95 : 0.5;
+      ctx.moveTo(x0, y0);
+      ctx.quadraticCurveTo(cv.ctrl.x, cv.ctrl.y, cv.end.x, cv.end.y);
       ctx.stroke();
+    });
+    // 横糸（糸同士をつないで網目にする）
+    if (ease > 0.25) {
+      ctx.lineWidth = Math.max(1.2, W / 320);
+      ctx.globalAlpha = 0.38 * fade;
+      for (const fr of [0.34, 0.55, 0.76, 0.93]) {
+        if (fr > ease + 0.05) continue;
+        ctx.beginPath();
+        curves.forEach((cv, i) => {
+          const pt = qpt(origin, cv.ctrl, cv.end, fr);
+          i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y);
+        });
+        ctx.stroke();
+      }
     }
     if (p >= 1) {
-      // 着弾点のスプラット
-      ctx.globalAlpha = Math.max(0, (w.until - now) / 950);
+      // 中心の着弾点スプラット
+      const cEnd = curves[Math.floor(curves.length / 2)].end;
+      ctx.globalAlpha = fade;
       ctx.fillStyle = "rgba(255,255,255,.9)";
-      ctx.beginPath(); ctx.arc(x1, y1, W / 90, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.arc(cEnd.x, cEnd.y, W / 90, 0, 7); ctx.fill();
       ctx.lineWidth = Math.max(1.5, W / 300);
       for (let i = 0; i < 7; i++) {
         const a = i / 7 * Math.PI * 2 + 0.4;
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x1 + Math.cos(a) * W / 34, y1 + Math.sin(a) * W / 34);
+        ctx.moveTo(cEnd.x, cEnd.y);
+        ctx.lineTo(cEnd.x + Math.cos(a) * W / 34, cEnd.y + Math.sin(a) * W / 34);
         ctx.stroke();
       }
     }
@@ -689,7 +728,7 @@ function loop() {
     hands.push({ lm, wlm: res.worldLandmarks?.[i] ?? null });
     if (i === 0) trackGuupa(g.count);
     trackRepulsor(g, i);
-    trackMagicWeb(g, lm, i);
+    trackWeb(lm, i);
     if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
@@ -712,6 +751,9 @@ function loop() {
     }
   });
   Object.keys(lastPt).forEach(k => { if (!seen.has(+k)) lastPt[k] = null; });
+  const bothOpen = hands.length === 2 && counts.length === 2 && counts.every(c => c === 5);
+  if (bothOpen) { if (!bothOpenSince) bothOpenSince = performance.now(); }
+  else bothOpenSince = 0;
   if (armorMode !== "off" && hands.length) {
     if (tReady && use3D && tSets.length) {
       tGroup.visible = true;
@@ -729,7 +771,6 @@ function loop() {
   } else if (tReady && use3D && armorMode !== "off") {
     tGroup.visible = false; tSets.forEach(hideSet); tRenderer.render(tScene, tCamera);
   }
-  for (let i = hands.length; i < 2; i++) palmOpenSince[i] = 0;
   hands.forEach((h, i) => drawBlast2D(h.lm, i));
   hands.forEach((h, i) => drawMagic(h.lm, i));
   drawWebs();
