@@ -76,7 +76,7 @@
 </div>
 
 <div class="help">
-  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除（両手対応） ｜ グーを5秒キープ→パーでリパルサー3秒発射（両手それぞれ） ｜ 横向きで横画面全面 ｜ <span id="fps">FPS: -</span>
+  ✊グー / 🖐パー / ✌ピース / 👍サムズアップ / ☝人差し指 / 👌OK ｜ お絵描き: つまむと線が引けます ｜ パーで手を3回振ると全消去 ｜ グーパー×3で3Dアーマー装着/解除（両手対応） ｜ グーを5秒キープ→パーでリパルサー3秒発射（両手それぞれ） ｜ パーをキープで魔法陣 ｜ 人差し指と小指だけ立てると糸発射 ｜ 横向きで横画面全面 ｜ <span id="fps">FPS: -</span>
 </div>
 </div>
 
@@ -158,6 +158,7 @@ function classify(lm) {
     name = f.thumb && lm[4].y < lm[3].y && lm[4].y < lm[5].y ? "👍 サムズアップ" : "✊ グー";
   }
   else if (n === 5) name = "🖐 パー";
+  else if (f.index && f.pinky && !f.middle && !f.ring) name = "🕸 ウェブポーズ";
   else if (f.index && f.middle && !f.ring && !f.pinky) name = "✌ ピース";
   else if (f.index && !f.middle && !f.ring && !f.pinky) name = "☝ 人差し指";
   else name = `${n}本指`;
@@ -250,6 +251,123 @@ function drawBlast2D(lm, idx = 0) {
     ctx.beginPath(); ctx.moveTo(x + Math.cos(a)*r1, y + Math.sin(a)*r1); ctx.lineTo(x + Math.cos(a)*r2, y + Math.sin(a)*r2); ctx.stroke();
   }
   ctx.restore();
+}
+
+// --- 魔法陣（パーをキープ）＆ ウェブシューター（人差し指+小指だけ立てる） ---
+let palmOpenSince = [0, 0];
+let webs = [];
+let webCool = [0, 0];
+function trackMagicWeb(g, lm, idx) {
+  const now = performance.now();
+  if (g.count === 5) { if (!palmOpenSince[idx]) palmOpenSince[idx] = now; }
+  else palmOpenSince[idx] = 0;
+  const f = fingerStates(lm);
+  const isWeb = f.index && f.pinky && !f.middle && !f.ring;
+  if (isWeb && now > webCool[idx] && now >= rep[idx].blastUntil) {
+    let dx = lm[8].x - lm[5].x, dy = lm[8].y - lm[5].y;
+    const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+    webs.push({ x: lm[0].x, y: lm[0].y, dx, dy, t0: now, until: now + 950 });
+    webCool[idx] = now + 1150;
+  }
+}
+function drawMagic(lm, idx) {
+  const since = palmOpenSince[idx];
+  if (!since) return;
+  const now = performance.now();
+  if (now - since < 350 || now < rep[idx].blastUntil) return;
+  const k = Math.min(1, (now - since - 350) / 250);
+  const W = canvas.width, H = canvas.height;
+  const c = palmCenter(lm), x = c.x * W, y = c.y * H;
+  const size = d(lm[0], lm[9]) * W;
+  const R = size * 1.15 * k;
+  const t = now / 1000;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.shadowColor = "rgba(255,140,40,.9)"; ctx.shadowBlur = 18;
+  ctx.strokeStyle = "rgba(255,154,60,.95)"; ctx.fillStyle = "rgba(255,140,40,.07)";
+  ctx.lineWidth = Math.max(2, W / 200);
+  ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.86, 0, 7); ctx.stroke();
+  // 外側: 回転する目盛りとルーン風の小片
+  ctx.save(); ctx.rotate(t * 0.9);
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    ctx.save(); ctx.rotate(a); ctx.fillStyle = "rgba(255,170,80,.95)";
+    if (i % 2) ctx.fillRect(R * 0.90, -1.5, R * 0.07, 3);
+    else ctx.fillRect(R * 0.90, -R * 0.045, R * 0.055, R * 0.09);
+    ctx.restore();
+  }
+  ctx.restore();
+  // 中段: 逆回転の三角×2（六芒星ふう）
+  ctx.save(); ctx.rotate(-t * 1.4);
+  ctx.strokeStyle = "rgba(255,190,100,.95)";
+  for (const flip of [0, Math.PI]) {
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const a = flip + i / 3 * Math.PI * 2 - Math.PI / 2;
+      const px = Math.cos(a) * R * 0.68, py = Math.sin(a) * R * 0.68;
+      i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath(); ctx.stroke();
+  }
+  ctx.restore();
+  // 内側: 回転する五角形と中心円
+  ctx.save(); ctx.rotate(t * 2.1);
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const a = i / 5 * Math.PI * 2 - Math.PI / 2;
+    const px = Math.cos(a) * R * 0.42, py = Math.sin(a) * R * 0.42;
+    i ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(0, 0, R * 0.16, 0, 7);
+  ctx.fillStyle = "rgba(255,200,120,.85)"; ctx.fill();
+  ctx.restore();
+}
+function drawWebs() {
+  const now = performance.now();
+  webs = webs.filter(w => now < w.until);
+  if (!webs.length) return;
+  const W = canvas.width, H = canvas.height;
+  const maxL = Math.hypot(W, H) * 1.1;
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,.92)"; ctx.lineCap = "round";
+  ctx.shadowColor = "rgba(200,220,255,.8)"; ctx.shadowBlur = 6;
+  for (const w of webs) {
+    const age = now - w.t0;
+    const p = Math.min(1, age / 160);
+    const ease = 1 - Math.pow(1 - p, 3);
+    const len = maxL * ease;
+    const x0 = w.x * W, y0 = w.y * H;
+    const x1 = x0 + w.dx * len, y1 = y0 + w.dy * len;
+    const sag = Math.min(26, age / 18) * p;
+    const mx = (x0 + x1) / 2 - w.dy * 0, my = (y0 + y1) / 2 + sag;
+    ctx.lineWidth = Math.max(2, W / 160);
+    for (const off of [-0.35, 0, 0.35]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + off * 8, y0 + off * 5);
+      ctx.quadraticCurveTo(mx + off * 14, my, x1 + off * 10, y1 + off * 6);
+      ctx.globalAlpha = off === 0 ? 0.95 : 0.5;
+      ctx.stroke();
+    }
+    if (p >= 1) {
+      // 着弾点のスプラット
+      ctx.globalAlpha = Math.max(0, (w.until - now) / 950);
+      ctx.fillStyle = "rgba(255,255,255,.9)";
+      ctx.beginPath(); ctx.arc(x1, y1, W / 90, 0, 7); ctx.fill();
+      ctx.lineWidth = Math.max(1.5, W / 300);
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * Math.PI * 2 + 0.4;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 + Math.cos(a) * W / 34, y1 + Math.sin(a) * W / 34);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 // --- グーパー×3でアーマー装着（パーツが手に集まってくる演出） ---
@@ -571,6 +689,7 @@ function loop() {
     hands.push({ lm, wlm: res.worldLandmarks?.[i] ?? null });
     if (i === 0) trackGuupa(g.count);
     trackRepulsor(g, i);
+    trackMagicWeb(g, lm, i);
     if (drawMode && g.pinching) { lastPinchT = performance.now(); resetWave(); }
     if (drawMode && g.count === 5 && !waveDone) { waveDone = true; trackWave(lm[0].x); }
     const hand = res.handednesses?.[i]?.[0]?.categoryName ?? "";
@@ -610,7 +729,10 @@ function loop() {
   } else if (tReady && use3D && armorMode !== "off") {
     tGroup.visible = false; tSets.forEach(hideSet); tRenderer.render(tScene, tCamera);
   }
+  for (let i = hands.length; i < 2; i++) palmOpenSince[i] = 0;
   hands.forEach((h, i) => drawBlast2D(h.lm, i));
+  hands.forEach((h, i) => drawMagic(h.lm, i));
+  drawWebs();
 
   const gEl = $("gesture"), cEl = $("count");
   if (gestures.length) {
